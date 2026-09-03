@@ -18,8 +18,9 @@ services:
     plan: free
     healthCheckPath: /api/health
     # Free-tier services can't use preDeployCommand, so migrations run as part of the container's
-    # own startup instead of the Dockerfile's plain `uvicorn` CMD.
-    dockerCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    # own startup instead of the Dockerfile's plain `uvicorn` CMD. A script file (rather than an
+    # inline `sh -c "... && ..."` string) sidesteps Render's dockerCommand quoting/splitting.
+    dockerCommand: ./start.sh
     envVars:
       - key: ENVIRONMENT
         value: production

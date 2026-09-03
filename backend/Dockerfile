@@ -95,6 +95,8 @@ WORKDIR /app
 COPY --chown=opd:opd alembic.ini /app/alembic.ini
 COPY --chown=opd:opd app/   /app/app/
 COPY --chown=opd:opd tools/ /app/tools/
+COPY --chown=opd:opd start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 USER opd
 
