@@ -37,7 +37,7 @@ services:
       - key: ALLOW_CLOUD_PROCESSING
         value: "true"
       - key: CORS_ORIGINS
-        value: https://opd-scan-frontend.onrender.com
+        value: https://opd-scan-frontend-wd45.onrender.com
       - key: GOOGLE_PROJECT_ID
         value: "260178664768"
       - key: GOOGLE_LOCATION
@@ -70,7 +70,7 @@ services:
       # instead of the single-origin nginx proxy the Docker image uses in production.
       - type: rewrite
         source: /api/*
-        destination: https://opd-scan-backend.onrender.com/api/:splat
+        destination: https://opd-scan-backend-wd45.onrender.com/api/:splat
       - type: rewrite
         source: /*
         destination: /index.html
