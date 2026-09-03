@@ -75,9 +75,13 @@ services:
     routes:
       # Keeps the frontend's hardcoded `/api` base working with two separate Render services
       # instead of the single-origin nginx proxy the Docker image uses in production.
+      #
+      # :splat already carries the leading slash it captured (e.g. "/health"), so the destination
+      # must NOT put another slash before it — "/api/:splat" would proxy to ".../api//health",
+      # which the backend 404s on since that is a different path from "/api/health".
       - type: rewrite
         source: /api/*
-        destination: https://opd-scan-backend-wd45.onrender.com/api/:splat
+        destination: https://opd-scan-backend-wd45.onrender.com/api:splat
       - type: rewrite
         source: /*
         destination: /index.html
