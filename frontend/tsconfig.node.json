@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    /* A composite project must emit; the build info file is all that is produced. */
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "outDir": "./.tsbuild"
+  },
+  "include": ["vite.config.ts"]
+}

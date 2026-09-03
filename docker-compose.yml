@@ -1,0 +1,252 @@
+# OPD Scan QC — base compose stack.
+#
+#   cp .env.example .env      # then edit it
+#   docker compose up -d --build
+#   open http://localhost:8080
+#
+# Six services:
+#   postgres  the record of truth
+#   redis     Celery broker and result backend
+#   backend   FastAPI under uvicorn
+#   worker    Celery worker — ingest, quality, handwriting, diagnosis
+#   beat      Celery beat — periodic sweeps, including stalled-job recovery
+#   frontend  nginx serving the built SPA and proxying /api to backend
+#
+# Every service declares a healthcheck and every dependency waits on
+# service_healthy, so `up` does not race the database.
+#
+# On-premises overlay:
+#   docker compose -f docker-compose.yml -f docker-compose.onprem.yml up -d
+
+name: opd-scan-qc
+
+# --------------------------------------------------------------------------- #
+# Shared backend configuration. The api, worker and beat services run the same
+# image with the same environment and differ only in their command.
+# --------------------------------------------------------------------------- #
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  image: opd-scan-qc/backend:local
+  env_file:
+    - .env
+  environment:
+    # Point at the compose service names regardless of what .env says, so the
+    # same .env works for a laptop run and a compose run.
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-opd}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-opd}
+    REDIS_URL: redis://redis:6379/0
+    STORAGE_ROOT: /var/lib/opd/storage
+  volumes:
+    - file_storage:/var/lib/opd/storage
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+  # The uploaded scans and the OCR payloads are the sensitive things here;
+  # nothing needs to escalate privileges to handle them.
+  security_opt:
+    - no-new-privileges:true
+
+services:
+
+  # ------------------------------------------------------------------------- #
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-opd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-opd}
+      # Deterministic collation, so ORDER BY on patient_ref does not change
+      # meaning if the base image's locale data moves under us.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-opd} -d ${POSTGRES_DB:-opd}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # Not published to the host by default. Uncomment only for debugging, and
+    # bind to loopback when you do.
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+
+  # ------------------------------------------------------------------------- #
+  redis:
+    image: redis:7-alpine
+    # appendonly keeps queued jobs across a restart. A lost broker means lost
+    # queue entries, which the stalled-job sweeper would have to clean up.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --save
+      - "60"
+      - "1"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  # ------------------------------------------------------------------------- #
+  # One-shot schema migration. The API and the workers wait for this to exit 0,
+  # so `up` can never race an un-migrated database — which would otherwise
+  # present as a stack that starts cleanly and then 500s on every request.
+  migrate:
+    <<: *backend-common
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    healthcheck:
+      disable: true
+
+  # ------------------------------------------------------------------------- #
+  backend:
+    <<: *backend-common
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - "*"
+      - --workers
+      - "${API_WORKERS:-2}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status==200 else 1)"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    # Reachable through the frontend proxy. Published on loopback as well so
+    # that /api/docs and /api/settings/capabilities can be checked directly.
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  # ------------------------------------------------------------------------- #
+  worker:
+    <<: *backend-common
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app
+      - worker
+      - --loglevel=INFO
+      # Prefork: the quality engine is CPU-bound OpenCV work that does not
+      # yield the GIL usefully. See docs/DEPLOYMENT.md for sizing.
+      - --pool=prefork
+      - --concurrency=${WORKER_CONCURRENCY:-4}
+      # Recycle a child after this many tasks. PyMuPDF and OpenCV on large
+      # photographed spreads hold on to memory; recycling bounds the RSS.
+      - --max-tasks-per-child=100
+      - --prefetch-multiplier=1
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # ------------------------------------------------------------------------- #
+  # One beat process, and only one. It owns the periodic schedule, including
+  # the stalled-job sweeper that returns jobs whose worker died mid-task.
+  # Running two would double every sweep.
+  # ------------------------------------------------------------------------- #
+  beat:
+    <<: *backend-common
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app
+      - beat
+      - --loglevel=INFO
+      - --schedule=/var/lib/opd/beat/celerybeat-schedule
+      - --pidfile=
+    volumes:
+      - file_storage:/var/lib/opd/storage
+      - beat_state:/var/lib/opd/beat
+    deploy:
+      replicas: 1
+    healthcheck:
+      # beat has no ping interface. Instead: the persistent schedule file must
+      # exist and have been written to within the last five minutes, which is
+      # true only while beat is actually ticking.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,sys,time,glob; f=glob.glob('/var/lib/opd/beat/celerybeat-schedule*'); sys.exit(0 if f and time.time()-max(os.path.getmtime(p) for p in f) < 300 else 1)"
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # ------------------------------------------------------------------------- #
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: opd-scan-qc/frontend:local
+    ports:
+      - "${FRONTEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider --tries=1 http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  pg_data:
+    # Patient records live here. Back it up; see docs/DEPLOYMENT.md.
+  redis_data:
+  file_storage:
+    # Originals, renders, previews and thumbnails.
+  beat_state:

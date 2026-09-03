@@ -1,0 +1,148 @@
+# On-premises overlay — no page ever leaves the hospital network.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.onprem.yml up -d --build
+#
+# What this override changes:
+#   * ALLOW_CLOUD_PROCESSING=false, so both cloud providers refuse to run and
+#     report themselves as unconfigured even if credentials are present;
+#   * OCR is pointed at local_tesseract (printed text only);
+#   * handwriting and diagnosis are left at "none", which the system reports as
+#     UNCONFIGURED — never as "no handwriting found" and never as "no diagnosis";
+#   * storage moves to MinIO, an S3-compatible object store running beside the
+#     application on your own hardware.
+#
+# Read docs/ONPREM.md before deploying this. It sets out exactly which
+# capabilities are full, which are degraded and which are simply unavailable.
+
+name: opd-scan-qc
+
+x-onprem-env: &onprem-env
+  # ----- the switch that matters ------------------------------------------ #
+  ALLOW_CLOUD_PROCESSING: "false"
+
+  # ----- provider routing ------------------------------------------------- #
+  # Tesseract with eng+hin traineddata is installed in the backend image.
+  # It reads printed English and printed Hindi. It does not read handwriting,
+  # and it is not offered as a handwriting provider anywhere in the codebase.
+  OCR_PROVIDER: local_tesseract
+
+  # Left unconfigured on purpose. There is no offline handwriting engine in
+  # this image. Setting either of these to a cloud provider while
+  # ALLOW_CLOUD_PROCESSING is false has no effect: the provider still refuses.
+  # The only supported offline route to handwritten Hindi is a licensed Azure
+  # disconnected container — see docs/ONPREM.md.
+  HANDWRITING_PROVIDER: "none"
+  HANDWRITING_DEVANAGARI_PROVIDER: "none"
+  DIAGNOSIS_PROVIDER: "none"
+
+  # ----- storage ---------------------------------------------------------- #
+  STORAGE_BACKEND: s3
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_BUCKET: ${S3_BUCKET:-opd-scans}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+  # MinIO encrypts with SSE-S3 when asked. For a hardware-backed key, configure
+  # MinIO KES and change this to aws:kms.
+  S3_SERVER_SIDE_ENCRYPTION: AES256
+
+  # ----- privacy ---------------------------------------------------------- #
+  LOG_PATIENT_TEXT: "false"
+  ALLOW_TRAINING_USE: "false"
+
+services:
+
+  backend:
+    environment: *onprem-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  worker:
+    environment: *onprem-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  beat:
+    environment: *onprem-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # ------------------------------------------------------------------------- #
+  # Private S3-compatible object store.
+  #
+  # Not published to the host: only the backend, worker and beat containers on
+  # the compose network reach it. The console port is bound to loopback so an
+  # administrator can inspect the bucket over an SSH tunnel without exposing it
+  # to the ward network.
+  # ------------------------------------------------------------------------- #
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+      MINIO_BROWSER_REDIRECT_URL: http://127.0.0.1:9001
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  # ------------------------------------------------------------------------- #
+  # One-shot: create the bucket, deny anonymous access, turn on versioning.
+  # Runs to completion and exits; `docker compose ps` will show it as exited,
+  # which is correct.
+  # ------------------------------------------------------------------------- #
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+      S3_BUCKET: ${S3_BUCKET:-opd-scans}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$S3_BUCKET"
+        mc anonymous set none "local/$$S3_BUCKET"
+        mc version enable "local/$$S3_BUCKET"
+        echo "bucket $$S3_BUCKET ready: private, versioned"
+    restart: "no"
+
+volumes:
+  minio_data:
+    # Originals, renders, previews and thumbnails when the on-prem overlay is
+    # in use. The file_storage volume from the base file is still mounted and
+    # still holds the small S3 read cache under STORAGE_ROOT/_s3cache.

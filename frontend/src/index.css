@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Tell the browser to render form controls, scrollbars and the canvas in whichever scheme the
+       operating system is set to; Tailwind's dark: variants are keyed to the same signal. */
+    color-scheme: light dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply m-0 overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50;
+  }
+
+  /* A visible focus indicator everywhere. Browsers that support :focus-visible get the tidy
+     keyboard-only ring; anything else falls back to the default outline rather than none. */
+  :focus-visible {
+    outline-offset: 2px;
+  }
+
+  /* Respect a user who has asked for less motion — the only animation in the app is the spinner. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Skip link: visible only once focused. */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[100] focus:rounded focus:bg-sky-700 focus:px-3 focus:py-2 focus:text-white;
+  }
+
+  .table-base {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .table-base th {
+    @apply border-b border-slate-300 px-3 py-2 text-left font-semibold text-slate-800 dark:border-slate-700 dark:text-slate-200;
+  }
+
+  .table-base td {
+    @apply border-b border-slate-200 px-3 py-2 align-top text-slate-900 dark:border-slate-800 dark:text-slate-100;
+  }
+
+  .table-base tbody tr:hover {
+    @apply bg-slate-50 dark:bg-slate-900;
+  }
+}

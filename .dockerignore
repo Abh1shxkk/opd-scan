@@ -1,0 +1,82 @@
+# Keeps the build context small and keeps secrets and patient data out of image
+# layers.
+#
+# Scope, stated plainly because it is easy to get wrong: Docker reads the
+# .dockerignore found in the root of the BUILD CONTEXT. The compose stack builds
+# with `context: ./backend` and `context: ./frontend`, so this file does NOT
+# filter those two builds. It applies when the repository root is the context —
+# `docker build .`, a CI image, an `ADD`-style archive of the tree.
+#
+# The two Dockerfiles therefore do not rely on it: each COPYs its source trees
+# by name instead of using `COPY . .`, which is what actually keeps a
+# developer's .env, .venv, var/ or sample scans out of the images.
+
+# --- version control and CI ------------------------------------------------ #
+.git
+.gitignore
+.github
+.gitlab-ci.yml
+
+# --- secrets --------------------------------------------------------------- #
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+*credentials*.json
+
+# --- patient data and calibration output ----------------------------------- #
+var/
+backend/var/
+samples/
+scans/
+uploads/
+calibration.csv
+benchmark.json
+*.pdf
+*.tif
+*.tiff
+
+# --- Python ---------------------------------------------------------------- #
+**/__pycache__
+**/*.py[cod]
+**/.venv
+**/venv
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.coverage
+**/htmlcov
+
+# --- Node ------------------------------------------------------------------ #
+# node_modules is excluded so `npm ci` runs against the lockfile inside the
+# image rather than copying a host tree built for a different platform.
+**/node_modules
+# dist is excluded so the image always contains a bundle built in this build,
+# not a stale one from a developer's machine.
+frontend/dist
+dist
+**/.vite
+**/*.tsbuildinfo
+**/npm-debug.log*
+
+# --- docs and local artefacts, not needed at runtime ------------------------ #
+docs/
+ops/
+Makefile
+docker-compose*.yml
+README.md
+**/*.log
+**/*.sqlite
+**/*.sqlite3
+**/celerybeat-schedule*
+
+# --- editors and operating systems ----------------------------------------- #
+.idea
+.vscode
+**/.DS_Store
+**/Thumbs.db

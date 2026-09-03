@@ -1,0 +1,94 @@
+# --------------------------------------------------------------------------- #
+# Secrets and configuration
+#
+# .env holds the database password, the JWT signing key and, in a cloud
+# deployment, provider credentials. It must never be committed.
+# --------------------------------------------------------------------------- #
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+# Google service-account key files, whatever they are called.
+*service-account*.json
+*credentials*.json
+secrets/
+run/secrets/
+
+# --------------------------------------------------------------------------- #
+# Patient data
+#
+# Nothing derived from a real record belongs in version control. These entries
+# cover the default storage root, the calibration outputs and any folder of
+# sample scans left beside the repository.
+# --------------------------------------------------------------------------- #
+var/
+backend/var/
+samples/
+scans/
+uploads/
+calibration.csv
+benchmark.json
+*.csv
+!docs/**/*.csv
+# Loose scans dropped into the repository root by accident.
+/*.pdf
+/*.tif
+/*.tiff
+/*.jpg
+/*.jpeg
+/*.png
+backend/page_test.jpg
+
+# --------------------------------------------------------------------------- #
+# Python
+# --------------------------------------------------------------------------- #
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# --------------------------------------------------------------------------- #
+# Node / frontend
+# --------------------------------------------------------------------------- #
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# --------------------------------------------------------------------------- #
+# Runtime and tooling
+# --------------------------------------------------------------------------- #
+*.log
+celerybeat-schedule*
+celerybeat.pid
+*.pid
+*.sqlite
+*.sqlite3
+*.db
+
+# --------------------------------------------------------------------------- #
+# Editors and operating systems
+# --------------------------------------------------------------------------- #
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

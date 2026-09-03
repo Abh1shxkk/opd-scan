@@ -1,0 +1,73 @@
+# Render Blueprint — quick, free deployment for testing only.
+#
+# Uses SQLite + inline job execution (same as the local trial setup), so there is no database
+# service to provision and nothing to wait on a worker for. Fine for trying the app out; NOT the
+# production topology (see docker-compose.yml / docs/DEPLOYMENT.md for that — Postgres + Celery +
+# Redis, persistent storage, no free-tier disk resets).
+#
+# The free web service has no persistent disk: the SQLite file and any uploaded scans live under
+# /tmp and are wiped on every deploy or restart. The free instance also sleeps after ~15 minutes of
+# no traffic; the first request after that takes 30-50s to wake it.
+
+services:
+  - type: web
+    name: opd-scan-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/health
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////tmp/opd-trial.db
+      - key: STORAGE_BACKEND
+        value: local
+      - key: STORAGE_ROOT
+        value: /tmp/opd-storage
+      - key: JOB_EXECUTION
+        value: inline
+      - key: ALLOW_CLOUD_PROCESSING
+        value: "true"
+      - key: CORS_ORIGINS
+        value: https://opd-scan-frontend.onrender.com
+      - key: GOOGLE_PROJECT_ID
+        value: "260178664768"
+      - key: GOOGLE_LOCATION
+        value: asia-south1
+      - key: GOOGLE_PROCESSOR_ID
+        value: "6a5794bc23e5dbef"
+      # Uploaded as a Render "Secret File" (see the deploy notes) — Render mounts it at this exact
+      # path, so this value must match the filename given to the secret file.
+      - key: GOOGLE_CREDENTIALS_JSON
+        value: /etc/secrets/google-docai.json
+      - key: OCR_PROVIDER
+        value: google_docai
+      - key: HANDWRITING_PROVIDER
+        value: google_docai
+      - key: DIAGNOSIS_PROVIDER
+        value: google_docai
+      - key: GOOGLE_ENABLE_QUALITY_SCORES
+        value: "false"
+      - key: DOCUMENT_LANGUAGES
+        value: en
+
+  - type: web
+    name: opd-scan-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      # Keeps the frontend's hardcoded `/api` base working with two separate Render services
+      # instead of the single-origin nginx proxy the Docker image uses in production.
+      - type: rewrite
+        source: /api/*
+        destination: https://opd-scan-backend.onrender.com/api/:splat
+      - type: rewrite
+        source: /*
+        destination: /index.html
