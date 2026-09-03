@@ -26,6 +26,13 @@ services:
         value: staging
       - key: SECRET_KEY
         generateValue: true
+      # Bootstraps the first admin account on every startup (see start.sh) — there is no public
+      # signup route and the free plan has no Shell access to run tools/seed.py by hand. Both
+      # values must be set by hand in the Render dashboard (Environment tab), never committed here.
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
       - key: DATABASE_URL
         value: sqlite:////tmp/opd-trial.db
       - key: STORAGE_BACKEND
