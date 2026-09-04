@@ -13,6 +13,7 @@ import {
   Stethoscope,
   UploadCloud,
   BarChart3,
+  Pill,
   Settings as SettingsIcon,
   LogOut,
   ScanLine,
@@ -28,6 +29,7 @@ const MAIN_NAV: Array<{ to: string; label: string; role?: Role; icon: LucideIcon
   { to: '/review', label: 'Review queue', role: 'reviewer', icon: ClipboardCheck },
   { to: '/diagnoses', label: 'Diagnosis review', role: 'reviewer', icon: Stethoscope },
   { to: '/upload', label: 'Upload', role: 'uploader', icon: UploadCloud },
+  { to: '/prescriptions', label: 'Prescription analyzer', role: 'uploader', icon: Pill },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
 ];
 

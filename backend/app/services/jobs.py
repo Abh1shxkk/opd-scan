@@ -192,8 +192,14 @@ def sweep_stalled(db: Session, stale_after: timedelta = STALE_AFTER) -> dict[str
 
 
 def queue_page_stages(db: Session, page_version_id: str, stages: list[str] | None = None, salt: str = "") -> list[Job]:
-    """Queue the three analysis stages for a page. Each is independent by design."""
-    stages = stages or ["quality", "handwriting", "diagnosis"]
+    """Queue the three analysis stages for a page. Each is independent by design.
+
+    ``stages=None`` (the default) queues the standard three. Pass ``[]`` explicitly to queue none —
+    that is a deliberate choice a caller makes, not the same thing as "unspecified", so it must not
+    fall through to the default via truthiness the way ``stages or [...]`` would.
+    """
+    if stages is None:
+        stages = ["quality", "handwriting", "diagnosis"]
     jobs = []
     for stage in stages:
         jobs.append(enqueue(db, JobKind(stage), page_version_id=page_version_id, salt=salt))

@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import admin, auth, dashboard, diagnoses, pages, records, reports
+from app.api.routes import admin, auth, dashboard, diagnoses, pages, prescriptions, records, reports
 from app.config import settings
 from app.core.audit import redact
 
@@ -73,7 +73,7 @@ async def unhandled(request: Request, exc: Exception):  # noqa: ANN201, ARG001
 
 
 for router in (auth.router, records.router, pages.router, diagnoses.router, dashboard.router,
-               reports.router, admin.router, admin.checklists):
+               reports.router, admin.router, admin.checklists, prescriptions.router):
     app.include_router(router, prefix=settings.api_prefix)
 
 

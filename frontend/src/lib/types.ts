@@ -248,6 +248,32 @@ export interface PrescriptionResult {
   computed_at: string;
 }
 
+/** `POST /prescriptions/analyze` and `GET /prescriptions/{id}` — the standalone analyzer. */
+export interface PrescriptionAnalysisPage {
+  page_version_id: string;
+  ordinal: number;
+  width: number;
+  height: number;
+  quality: QualityResult | null;
+  prescription: PrescriptionResult | null;
+}
+
+export interface PrescriptionAnalysisResponse {
+  document_id: string;
+  original_filename: string;
+  page_count: number;
+  pages: PrescriptionAnalysisPage[];
+}
+
+/** `GET /prescriptions/recent` — one row per past standalone upload. */
+export interface PrescriptionAnalysisSummary {
+  document_id: string;
+  original_filename: string;
+  uploaded_at: string;
+  page_count: number;
+  ingest_status: IngestStatus;
+}
+
 // ----------------------------------------------------------- diagnosis
 
 export interface DiagnosisReview {

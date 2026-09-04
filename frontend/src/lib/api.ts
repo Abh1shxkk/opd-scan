@@ -27,6 +27,8 @@ import type {
   PageDetail,
   PageReviewAction,
   PageSummary,
+  PrescriptionAnalysisResponse,
+  PrescriptionAnalysisSummary,
   Qualifier,
   ThresholdsResponse,
   UploadResultRow,
@@ -356,6 +358,72 @@ export const api = {
       xhr.send(form);
     });
   },
+
+  // ------------------------------------------------- prescription analyzer
+
+  /**
+   * Upload one prescription image/PDF and wait for the finished reading in the same response.
+   * Unlike uploadDocument, this is synchronous end to end — it can legitimately take 30-60s (OCR
+   * then an LLM call), so the timeout is generous and there is no polling to do afterwards.
+   */
+  analyzePrescription(
+    file: File,
+    onProgress?: (fraction: number) => void,
+    signal?: AbortSignal,
+  ): Promise<PrescriptionAnalysisResponse> {
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append('file', file, file.name);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/prescriptions/analyze`);
+      xhr.timeout = 180_000;
+      const token = getToken();
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 401) {
+          clearSession();
+          window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+          reject(new ApiError(401, 'Your session has expired. Please sign in again.'));
+          return;
+        }
+        let parsed: unknown = null;
+        try {
+          parsed = JSON.parse(xhr.responseText);
+        } catch {
+          /* handled by the status check below */
+        }
+        if (xhr.status >= 200 && xhr.status < 300 && parsed) {
+          resolve(parsed as PrescriptionAnalysisResponse);
+          return;
+        }
+        const detail = (parsed as { detail?: unknown } | null)?.detail;
+        reject(
+          new ApiError(
+            xhr.status,
+            typeof detail === 'string' && detail ? detail : `Analysis failed (HTTP ${xhr.status}).`,
+          ),
+        );
+      };
+      xhr.onerror = () => reject(new ApiError(0, 'Network error — the file did not reach the server.'));
+      xhr.onabort = () => reject(new ApiError(0, 'Cancelled.'));
+      xhr.ontimeout = () => reject(new ApiError(0, 'The analysis took too long and timed out.'));
+
+      signal?.addEventListener('abort', () => xhr.abort());
+      xhr.send(form);
+    });
+  },
+
+  listRecentPrescriptionAnalyses: () =>
+    request<PrescriptionAnalysisSummary[]>('/prescriptions/recent'),
+
+  getPrescriptionAnalysis: (documentId: string) =>
+    request<PrescriptionAnalysisResponse>(`/prescriptions/${documentId}`),
 
   // ---------------------------------------------------------------- pages
 

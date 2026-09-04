@@ -50,11 +50,17 @@ def ingest_document(
     db: Session,
     doc: Document,
     on_progress: Callable[[int, int], bool] | None = None,
+    default_stages: list[str] | None = None,
 ) -> Document:
     """Split ``doc`` into logical pages and queue analysis for each.
 
     ``on_progress(done, total)`` may return False to request a clean stop at the next page boundary,
     which is how cancellation works without killing a worker mid-write.
+
+    ``default_stages`` is forwarded to ``queue_page_stages`` for every page — ``None`` keeps its own
+    default (quality, handwriting, diagnosis, matching every scan-QC upload); pass ``[]`` for a
+    caller that runs its own stages synchronously right after (the standalone prescription analyzer
+    does this, to avoid queuing scan-QC work nothing there will ever look at).
     """
     storage = get_storage()
     doc.ingest_status = IngestStatus.running
@@ -139,7 +145,7 @@ def ingest_document(
         db.add(version)
         db.commit()
 
-        for job in job_service.queue_page_stages(db, version.id):
+        for job in job_service.queue_page_stages(db, version.id, stages=default_stages):
             queued_jobs.append(job.id)
         db.commit()
 
