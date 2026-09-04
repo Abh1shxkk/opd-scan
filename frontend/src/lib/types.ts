@@ -442,6 +442,6 @@ export interface Checklist {
 export interface Paged<T> {
   items: T[];
   total: number;
-  page: number;
-  page_size: number;
+  offset: number;
+  limit: number;
 }

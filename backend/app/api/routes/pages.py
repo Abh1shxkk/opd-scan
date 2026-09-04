@@ -138,7 +138,10 @@ def list_pages(
     _: User = Depends(current_user),
 ):
     total = count_pages(db, f)
-    limit = f.limit or 50
+    # A document rarely exceeds a couple hundred pages; a low default here would split one
+    # document's pages across pagination pages, breaking the per-document accordion grouping in
+    # the UI (a document's pages would appear to "disappear" once its run crosses a page boundary).
+    limit = f.limit or 200
     paged = PageFilters(**{**f.__dict__, "limit": limit})
     stmt = active_page_query(db, paged, apply_paging=True).options(
         selectinload(PageVersion.logical_page).selectinload(LogicalPage.document).selectinload(Document.batch),

@@ -58,7 +58,7 @@ export default function DocumentsPage() {
 
   const active = tab === 'pages' ? pagesQuery : docsQuery;
   const total = active.data?.total ?? 0;
-  const pageSize = active.data?.page_size ?? 50;
+  const pageSize = active.data?.limit ?? 50;
   const lastPage = Math.max(1, Math.ceil(total / Math.max(pageSize, 1)));
 
   return (
