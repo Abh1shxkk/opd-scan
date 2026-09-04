@@ -92,7 +92,7 @@ class Settings(BaseSettings):
     azure_di_key: str | None = None
 
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.5-flash"
 
     provider_timeout_seconds: int = 120
     provider_max_attempts: int = 3
