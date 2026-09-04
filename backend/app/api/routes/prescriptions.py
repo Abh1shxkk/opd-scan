@@ -15,6 +15,7 @@ reference to attach.
 from __future__ import annotations
 
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -174,31 +175,26 @@ async def analyze_prescription(
     ingest_service.ingest_document(db, doc, default_stages=[])
     db.refresh(doc)
 
+    page_version_ids = [
+        pv.id for pv in (p.active_version for p in sorted(doc.pages, key=lambda p: p.ordinal)) if pv is not None
+    ]
+
+    # Each page is OCR + an LLM call — tens of seconds each. Run them in parallel, each on its own DB
+    # session (SQLAlchemy sessions are not thread-safe to share), the same way a Celery worker task
+    # gets its own session per job. A multi-page upload would otherwise serialise to several minutes
+    # and risk the proxy's read timeout regardless of how generous it is set.
+    if page_version_ids:
+        with ThreadPoolExecutor(max_workers=min(len(page_version_ids), 4)) as pool:
+            list(pool.map(_analyse_one_page, page_version_ids))
+
     pages_out = []
-    for page in sorted(doc.pages, key=lambda p: p.ordinal):
-        pv = page.active_version
-        if pv is None:
-            continue
-
-        pipeline.run_quality(db, pv)
-        db.commit()
-
-        if settings.ocr_provider == "none" or settings.prescription_reasoning_provider == "none":
-            pipeline.run_prescription(db, pv)  # writes the "unconfigured" result itself
-        else:
-            try:
-                pipeline.run_prescription(db, pv)
-            except (ProviderUnconfigured, ProviderError):
-                # run_prescription already catches and records these; this is a last-resort net so a
-                # transport error some layer forgot to catch still returns a result, not a 500.
-                pass
-        db.commit()
+    for pv_id in page_version_ids:
+        pv = db.get(PageVersion, pv_id)
         db.refresh(pv)
-
         pages_out.append(
             {
                 "page_version_id": pv.id,
-                "ordinal": page.ordinal,
+                "ordinal": pv.logical_page.ordinal,
                 "width": pv.width,
                 "height": pv.height,
                 "quality": _quality_out(pv),
@@ -212,6 +208,28 @@ async def analyze_prescription(
         "page_count": doc.page_count,
         "pages": pages_out,
     }
+
+
+def _analyse_one_page(page_version_id: str) -> None:
+    """Runs in a worker thread with its own session — see the comment above the call site."""
+    from app.db import SessionLocal
+
+    db = SessionLocal()
+    try:
+        pv = db.get(PageVersion, page_version_id)
+        if pv is None:
+            return
+        pipeline.run_quality(db, pv)
+        db.commit()
+        try:
+            pipeline.run_prescription(db, pv)
+        except (ProviderUnconfigured, ProviderError):
+            # run_prescription already catches and records these itself; this is a last-resort net
+            # so a transport error some layer forgot to catch still leaves a result, not a crash.
+            pass
+        db.commit()
+    finally:
+        db.close()
 
 
 @router.get("/recent")
