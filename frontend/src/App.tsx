@@ -22,6 +22,7 @@ import DiagnosisQueuePage from './pages/DiagnosisQueuePage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
 import PrescriptionAnalyzerPage from './pages/PrescriptionAnalyzerPage';
+import PrescriptionResultPage from './pages/PrescriptionResultPage';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -114,6 +115,14 @@ export default function App() {
                   element={
                     <RequireRole role="uploader">
                       <PrescriptionAnalyzerPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/prescriptions/:documentId"
+                  element={
+                    <RequireRole role="uploader">
+                      <PrescriptionResultPage />
                     </RequireRole>
                   }
                 />
