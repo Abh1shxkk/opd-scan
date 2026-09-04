@@ -117,9 +117,7 @@ export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAna
             <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-300">
               Raw OCR text (exact, unedited)
             </summary>
-            <p className="mt-1 whitespace-pre-wrap font-mono text-xs text-slate-800 dark:text-slate-200">
-              {p.raw_extracted_text || '(no text was transcribed)'}
-            </p>
+            <RawOcrText text={p.raw_extracted_text} />
           </details>
 
           <p className="border-t border-slate-200 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400">
@@ -129,6 +127,46 @@ export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAna
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Lays the OCR transcription out as one row per line instead of one dense paragraph.
+ *
+ * The text itself is never touched — every character the OCR engine returned is still shown,
+ * verbatim, in the same order. This only adds line-by-line structure (and a bold label when a line
+ * looks like "Label: value", a common shape on printed hospital forms) so a long transcription is
+ * scannable instead of a wall of text.
+ */
+function RawOcrText({ text }: { text: string }) {
+  const lines = text.split('\n').filter((line) => line.trim().length > 0);
+
+  if (lines.length === 0) {
+    return <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">(no text was transcribed)</p>;
+  }
+
+  return (
+    <div className="mt-1 max-h-96 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
+      <dl className="divide-y divide-slate-100 dark:divide-slate-800/60">
+        {lines.map((line, i) => {
+          const m = /^([^:]{1,40}):\s*(.+)$/.exec(line);
+          return (
+            <div key={i} className="flex flex-wrap gap-x-2 px-2.5 py-1.5 odd:bg-slate-50 dark:odd:bg-slate-900/40">
+              {m ? (
+                <>
+                  <dt className="w-32 shrink-0 font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    {m[1]}
+                  </dt>
+                  <dd className="min-w-0 flex-1 font-mono text-xs text-slate-900 dark:text-slate-100">{m[2]}</dd>
+                </>
+              ) : (
+                <dd className="min-w-0 flex-1 font-mono text-xs text-slate-900 dark:text-slate-100">{line}</dd>
+              )}
+            </div>
+          );
+        })}
+      </dl>
     </div>
   );
 }

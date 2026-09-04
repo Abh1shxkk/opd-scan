@@ -263,6 +263,8 @@ export interface PrescriptionAnalysisResponse {
   original_filename: string;
   page_count: number;
   pages: PrescriptionAnalysisPage[];
+  /** Wall-clock time from upload to the last page finishing, in seconds. Null until any page has a result. */
+  analysis_seconds: number | null;
 }
 
 /** `GET /prescriptions/recent` — one row per past standalone upload. */

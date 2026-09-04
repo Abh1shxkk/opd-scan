@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { api, imagePath } from '../lib/api';
+import { formatDuration } from '../lib/status';
 import { PageThumb } from '../components/PageThumb';
 import { PrescriptionPageDetails } from '../components/PrescriptionResultPanel';
 import { Panel } from '../components/StatTile';
@@ -45,8 +46,9 @@ export default function PrescriptionResultPage() {
         </Link>
         <h1 className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-50">{result.original_filename}</h1>
         <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-          {result.page_count} page{result.page_count === 1 ? '' : 's'}. AI-assisted reading — not a
-          diagnosis and not medical advice.
+          {result.page_count} page{result.page_count === 1 ? '' : 's'}
+          {result.analysis_seconds != null ? <> · analysed in {formatDuration(result.analysis_seconds)}</> : null}.
+          AI-assisted reading — not a diagnosis and not medical advice.
         </p>
       </header>
 

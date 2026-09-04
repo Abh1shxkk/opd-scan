@@ -70,6 +70,19 @@ def _quality_out(pv: PageVersion) -> QualityOut | None:
     )
 
 
+def _analysis_seconds(doc: Document, pages_out: list[dict]) -> float | None:
+    """Wall-clock time from upload to the last page's reading finishing.
+
+    Derived from timestamps already stored (upload time, each page's prescription.computed_at)
+    rather than a new column — the two are only ever a few seconds apart from the actual OCR/LLM
+    calls in practice, since ingest and analysis run immediately after upload in this route.
+    """
+    finished_at = [p["prescription"].computed_at for p in pages_out if p["prescription"] is not None]
+    if not finished_at or doc.uploaded_at is None:
+        return None
+    return max((t - doc.uploaded_at).total_seconds() for t in finished_at)
+
+
 def _prescription_out(pv: PageVersion) -> PrescriptionOut | None:
     if not pv.prescription:
         return None
@@ -207,6 +220,7 @@ async def analyze_prescription(
         "original_filename": doc.original_filename,
         "page_count": doc.page_count,
         "pages": pages_out,
+        "analysis_seconds": _analysis_seconds(doc, pages_out),
     }
 
 
@@ -284,4 +298,5 @@ def get_analysis(document_id: str, db: Session = Depends(get_db), _: User = Depe
         "original_filename": doc.original_filename,
         "page_count": doc.page_count,
         "pages": pages_out,
+        "analysis_seconds": _analysis_seconds(doc, pages_out),
     }
