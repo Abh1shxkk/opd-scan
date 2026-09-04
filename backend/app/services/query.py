@@ -436,9 +436,10 @@ def active_page_query(db: Session, f: PageFilters, *, apply_paging: bool = False
         LogicalPage.ordinal,
         PageVersion.version_no,
     )
-    # Every join above is many-to-one or one-to-one, so rows cannot fan out. distinct() is applied
-    # anyway as a cheap guarantee that a future join added here can never inflate a total.
-    stmt = stmt.distinct()
+    # Every join above is many-to-one or one-to-one, so rows cannot fan out — no distinct() needed.
+    # (A plain SELECT DISTINCT combined with ORDER BY on a joined-but-unselected column, as the sort
+    # above requires, is also rejected outright by PostgreSQL: "ORDER BY expressions must appear in
+    # select list".)
     if apply_paging and f.limit:
         stmt = stmt.limit(f.limit).offset(f.offset or 0)
     return stmt
