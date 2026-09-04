@@ -27,6 +27,7 @@ _STAGE_RUNNERS = {
     JobKind.quality: pipeline.run_quality,
     JobKind.handwriting: pipeline.run_handwriting,
     JobKind.diagnosis: pipeline.run_diagnosis,
+    JobKind.prescription: pipeline.run_prescription,
 }
 
 
@@ -72,6 +73,11 @@ def run_handwriting(self, job_id: str) -> str:  # noqa: ANN001, ARG001
 @celery_app.task(name="app.workers.tasks.run_diagnosis", bind=True, max_retries=0)
 def run_diagnosis(self, job_id: str) -> str:  # noqa: ANN001, ARG001
     return _run_stage(job_id, JobKind.diagnosis)
+
+
+@celery_app.task(name="app.workers.tasks.run_prescription", bind=True, max_retries=0)
+def run_prescription(self, job_id: str) -> str:  # noqa: ANN001, ARG001
+    return _run_stage(job_id, JobKind.prescription)
 
 
 @celery_app.task(name="app.workers.tasks.run_ingest", bind=True, max_retries=0)
@@ -167,6 +173,7 @@ _TASK_FOR_KIND = {
     JobKind.quality: run_quality,
     JobKind.handwriting: run_handwriting,
     JobKind.diagnosis: run_diagnosis,
+    JobKind.prescription: run_prescription,
 }
 
 

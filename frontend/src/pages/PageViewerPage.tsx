@@ -34,7 +34,9 @@ import {
   formatScore,
   handwritingCategoryLabel,
   handwritingView,
+  MEDICINE_CONFIDENCE_LABEL,
   pageClassView,
+  prescriptionView,
   qualifierView,
   reviewStateView,
   scriptHintLabel,
@@ -95,6 +97,15 @@ export default function PageViewerPage() {
     onError: (e) => toast.push(e instanceof Error ? e.message : 'The action could not be saved.', 'error'),
   });
 
+  const analyzePrescription = useMutation({
+    mutationFn: () => api.reprocessPage(pageVersionId, ['prescription']),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['page', pageVersionId] });
+      toast.push('Prescription analysis started — this can take a few seconds.', 'success');
+    },
+    onError: (e) => toast.push(e instanceof Error ? e.message : 'Could not start the analysis.', 'error'),
+  });
+
   if (q.isLoading) return <Spinner label="Loading page…" />;
   if (q.isError) return <ErrorState error={q.error} retry={() => q.refetch()} />;
   if (!q.data) return null;
@@ -103,8 +114,11 @@ export default function PageViewerPage() {
     <ViewerBody
       page={q.data}
       canReview={can('reviewer')}
+      canAnalyzePrescription={can('uploader')}
       onReview={(payload) => review.mutate(payload)}
       reviewPending={review.isPending}
+      onAnalyzePrescription={() => analyzePrescription.mutate()}
+      analyzingPrescription={analyzePrescription.isPending}
     />
   );
 }
@@ -112,13 +126,19 @@ export default function PageViewerPage() {
 function ViewerBody({
   page,
   canReview,
+  canAnalyzePrescription,
   onReview,
   reviewPending,
+  onAnalyzePrescription,
+  analyzingPrescription,
 }: {
   page: PageDetail;
   canReview: boolean;
+  canAnalyzePrescription: boolean;
   onReview: (p: { action: PageReviewAction; comment?: string; payload?: Record<string, unknown> }) => void;
   reviewPending: boolean;
+  onAnalyzePrescription: () => void;
+  analyzingPrescription: boolean;
 }) {
   const [mode, setMode] = useState<'original' | 'annotated'>('original');
   const [rotation, setRotation] = useState<Rotation>(0);
@@ -443,6 +463,12 @@ function ViewerBody({
           <QualityPanel page={page} onCorrect={canReview ? setCorrectFinding : undefined} onSelect={setSelectedShape} />
           <HandwritingPanel page={page} onSelect={setSelectedShape} />
           <DiagnosisPanel page={page} onSelect={setSelectedShape} />
+          <PrescriptionPanel
+            page={page}
+            canAnalyze={canAnalyzePrescription}
+            onAnalyze={onAnalyzePrescription}
+            analyzing={analyzingPrescription}
+          />
           <VersionHistoryPanel page={page} activeVersionId={activeVersion?.id ?? page.page_version_id} />
           <ReviewHistoryPanel page={page} />
           {page.case_id ? <CompletenessPanel caseId={page.case_id} /> : null}
@@ -686,6 +712,181 @@ function DiagnosisPanel({ page, onSelect }: { page: PageDetail; onSelect: (id: s
             </li>
           ))}
         </ul>
+      )}
+    </Panel>
+  );
+}
+
+/**
+ * Prescription understanding. Opt-in per page (unlike quality/handwriting/diagnosis, which run on
+ * every upload) — a reviewer explicitly asks for it, since not every scanned page is a prescription.
+ *
+ * The layout keeps three things visually distinct on purpose: the immutable OCR transcription, the
+ * AI's interpretation of it, and the disclaimer — so nothing here reads as more certain than it is.
+ */
+function PrescriptionPanel({
+  page,
+  canAnalyze,
+  onAnalyze,
+  analyzing,
+}: {
+  page: PageDetail;
+  canAnalyze: boolean;
+  onAnalyze: () => void;
+  analyzing: boolean;
+}) {
+  const p = page.prescription;
+  const status = page.prescription_status ?? null;
+
+  return (
+    <Panel
+      title="Prescription understanding"
+      description="AI-assisted reading of a handwritten prescription. Not a diagnosis, and not medical advice."
+      actions={
+        canAnalyze ? (
+          <Button variant="secondary" onClick={onAnalyze} disabled={analyzing}>
+            {analyzing ? 'Analysing…' : p ? 'Re-analyse' : 'Analyse as prescription'}
+          </Button>
+        ) : undefined
+      }
+    >
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <StatusPill view={prescriptionView(status)} showDetail />
+        {p?.language_detected ? (
+          <span className="text-xs text-slate-600 dark:text-slate-400">Language: {p.language_detected}</span>
+        ) : null}
+      </div>
+
+      {!p ? (
+        <p className="text-sm text-slate-700 dark:text-slate-300">
+          {status === 'unconfigured'
+            ? 'No prescription-reading provider is configured for this deployment.'
+            : 'Not yet analysed. Use "Analyse as prescription" above if this page is a handwritten prescription.'}
+        </p>
+      ) : p.error ? (
+        <p className="text-sm text-red-800 dark:text-red-300">{p.error}</p>
+      ) : (
+        <div className="space-y-4">
+          {p.requires_professional_confirmation ? (
+            <p className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-50">
+              <span aria-hidden="true">⚠ </span>
+              This reading has parts that are uncertain. Confirm every medicine, dose and instruction
+              with the prescribing doctor or a pharmacist before acting on it.
+            </p>
+          ) : null}
+
+          {p.safety_warnings.length > 0 ? (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Safety warnings</h3>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-red-800 dark:text-red-300">
+                {p.safety_warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {p.medicines.length > 0 ? (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Medicines</h3>
+              <ul className="mt-1 space-y-2">
+                {p.medicines.map((m, i) => (
+                  <li key={i} className="rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {m.name || 'Unreadable name'}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          m.confidence === 'high'
+                            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100'
+                            : m.confidence === 'medium'
+                              ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100'
+                              : 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100'
+                        }`}
+                      >
+                        {MEDICINE_CONFIDENCE_LABEL[m.confidence] ?? m.confidence}
+                      </span>
+                    </div>
+                    <dl className="mt-1 grid grid-cols-3 gap-2 text-xs text-slate-700 dark:text-slate-300">
+                      <div>
+                        <dt className="text-slate-500 dark:text-slate-400">Dose</dt>
+                        <dd>{m.dose || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500 dark:text-slate-400">Frequency</dt>
+                        <dd>{m.frequency || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500 dark:text-slate-400">Duration</dt>
+                        <dd>{m.duration || '—'}</dd>
+                      </div>
+                    </dl>
+                    {m.general_use ? (
+                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                        Generally used for: {m.general_use}
+                      </p>
+                    ) : null}
+                    {m.uncertainty ? (
+                      <p className="mt-1 text-xs italic text-amber-800 dark:text-amber-300">
+                        Uncertain: {m.uncertainty}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : status === 'extracted_pending_review' ? (
+            <p className="text-sm text-slate-700 dark:text-slate-300">No medicines were read on this page.</p>
+          ) : null}
+
+          {p.possible_interpretation ? (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Possible interpretation</h3>
+              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{p.possible_interpretation}</p>
+            </div>
+          ) : null}
+
+          {p.patient_explanation ? (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">In plain language</h3>
+              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{p.patient_explanation}</p>
+            </div>
+          ) : null}
+
+          {p.diagnosis_or_notes ? (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Diagnosis / notes on the page</h3>
+              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{p.diagnosis_or_notes}</p>
+            </div>
+          ) : null}
+
+          {p.uncertainties.length > 0 ? (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Unclear or unreadable</h3>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-slate-700 dark:text-slate-300">
+                {p.uncertainties.map((u, i) => (
+                  <li key={i}>{u}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <details className="text-sm">
+            <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-300">
+              Raw OCR text (exact, unedited)
+            </summary>
+            <p className="mt-1 whitespace-pre-wrap font-mono text-xs text-slate-800 dark:text-slate-200">
+              {p.raw_extracted_text || '(no text was transcribed)'}
+            </p>
+          </details>
+
+          <p className="border-t border-slate-200 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400">
+            This reading is AI-generated and may contain errors, especially for handwriting. It is not
+            a diagnosis and does not replace advice from the prescribing doctor or a pharmacist. Never
+            start, stop, or change a medication based only on this reading.
+          </p>
+        </div>
       )}
     </Panel>
   );

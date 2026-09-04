@@ -20,6 +20,8 @@ from app.models import (
     HandwritingRegion,
     HandwritingResult,
     PageVersion,
+    PrescriptionAnalysis,
+    PrescriptionMedicine,
     QualityFinding,
     QualityResult,
 )
@@ -29,6 +31,7 @@ from app.models.core import (
     HandwritingCategory,
     HandwritingStatus,
     PageClass,
+    PrescriptionStatus,
     Qualifier,
     Severity,
 )
@@ -336,3 +339,103 @@ def run_diagnosis(db: Session, pv: PageVersion) -> list[DiagnosisExtraction]:
         db.add(rec)
         out.append(rec)
     return out
+
+
+# -------------------------------------------------------------- prescription
+
+
+def run_prescription(db: Session, pv: PageVersion) -> PrescriptionAnalysis:
+    """Two-stage: read the page with whichever OCR provider is already configured (``ocr_provider``
+    — Google Document AI in this deployment), then hand that text plus the image to the configured
+    reasoning provider (Gemini) to structure it. Neither stage is skipped or faked when the other is
+    unavailable; an OCR failure here is reported the same way a quality/handwriting OCR failure is —
+    never silently treated as "no prescription found"."""
+    result = pv.prescription or PrescriptionAnalysis(page_version_id=pv.id)
+    result.computed_at = _now()
+    for old in list(result.medicines):
+        db.delete(old)
+    result.medicines = []
+
+    if settings.ocr_provider == "none" or settings.prescription_reasoning_provider == "none":
+        result.status = PrescriptionStatus.unconfigured
+        result.error = (
+            "OCR_PROVIDER and PRESCRIPTION_REASONING_PROVIDER must both be set to enable "
+            "prescription understanding. Until then nothing is claimed about this page."
+        )
+        db.add(result)
+        return result
+
+    image = _load_render(pv)
+    if image is None:
+        result.status = PrescriptionStatus.processing_failed
+        result.error = "The stored render could not be read."
+        db.add(result)
+        return result
+
+    try:
+        payload, mime = ingest.image_to_upload_bytes(image)
+        ocr_page = provider_router.analyse(payload, mime, "ocr", _language_hints())
+    except ProviderUnconfigured as exc:
+        result.status = PrescriptionStatus.unconfigured
+        result.error = str(exc)
+        db.add(result)
+        return result
+    except (ProviderError, ProviderUnsupported) as exc:
+        result.status = PrescriptionStatus.processing_failed
+        result.error = str(exc)
+        db.add(result)
+        return result
+
+    result.raw_extracted_text = ocr_page.full_text
+    result.ocr_provider_used = ocr_page.provider
+
+    reasoning_provider = provider_router.get_reasoning_provider(settings.prescription_reasoning_provider)
+    try:
+        reading = reasoning_provider.interpret(ocr_page.full_text, payload, mime, _language_hints())
+    except ProviderUnconfigured as exc:
+        result.status = PrescriptionStatus.unconfigured
+        result.error = str(exc)
+        db.add(result)
+        return result
+    except ProviderError as exc:
+        result.status = PrescriptionStatus.processing_failed
+        result.error = str(exc)
+        db.add(result)
+        return result
+
+    result.status = (
+        PrescriptionStatus.not_a_prescription
+        if not reading.medicines and "not a prescription" in reading.possible_interpretation.lower()
+        else PrescriptionStatus.extracted_pending_review
+    )
+    result.language_detected = reading.language_detected
+    result.diagnosis_or_notes = reading.diagnosis_or_notes
+    result.possible_interpretation = reading.possible_interpretation
+    result.patient_explanation = reading.patient_explanation
+    result.safety_warnings_json = reading.safety_warnings
+    result.uncertainties_json = reading.uncertainties
+    # Never trust the model's own "false" at face value if it also reported low-confidence medicines
+    # or any uncertainty — the DB-side default stays conservative regardless of what was returned.
+    result.requires_professional_confirmation = reading.requires_professional_confirmation or any(
+        m.confidence != "high" for m in reading.medicines
+    ) or bool(reading.uncertainties)
+    result.reasoning_provider_used = reading.provider
+    result.model_version = f"{ocr_page.model_version}+{reading.model_version}"
+    result.error = None
+
+    db.add(result)
+    db.flush()
+    for m in reading.medicines:
+        db.add(
+            PrescriptionMedicine(
+                analysis_id=result.id,
+                name=m.name,
+                dose=m.dose,
+                frequency=m.frequency,
+                duration=m.duration,
+                general_use=m.general_use,
+                confidence=m.confidence,
+                uncertainty=m.uncertainty,
+            )
+        )
+    return result

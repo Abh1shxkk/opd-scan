@@ -20,6 +20,7 @@ import type {
   IngestStatus,
   JobState,
   PageClass,
+  PrescriptionStatus,
   Qualifier,
   ReviewState,
   Severity,
@@ -198,6 +199,53 @@ const DIAGNOSIS: Record<DiagnosisStatus, StatusView> = {
     detail: 'No diagnosis provider is configured, so this page was never examined.',
   },
   pending: { label: 'Extraction pending', tone: 'neutral', icon: '⋯' },
+};
+
+// ----------------------------------------------------------- prescription
+
+const PRESCRIPTION: Record<PrescriptionStatus, StatusView> = {
+  extracted_pending_review: {
+    label: 'Read — awaiting confirmation',
+    tone: 'warn',
+    icon: '⋯',
+    detail: 'An AI reading of the prescription that no doctor or pharmacist has confirmed yet.',
+  },
+  not_a_prescription: {
+    label: 'No prescription found',
+    tone: 'neutral',
+    icon: '–',
+    detail: 'This page does not appear to carry a medicine list.',
+  },
+  unreadable: {
+    label: 'Not readable',
+    tone: 'bad',
+    icon: '✕',
+    detail: 'The handwriting was not confidently readable, so no medicines are presented. Read the image.',
+  },
+  processing_failed: {
+    label: 'Analysis failed',
+    tone: 'bad',
+    icon: '⚠',
+    detail: 'The analysis did not complete. Nothing was read from this page.',
+  },
+  unconfigured: {
+    label: 'Not configured',
+    tone: 'warn',
+    icon: '⚙',
+    detail: 'No prescription-reading provider is configured, so this page was never examined.',
+  },
+  pending: { label: 'Not yet analysed', tone: 'neutral', icon: '⋯' },
+};
+
+export function prescriptionView(s: PrescriptionStatus | null | undefined): StatusView {
+  if (!s) return PRESCRIPTION.pending;
+  return PRESCRIPTION[s] ?? PRESCRIPTION.pending;
+}
+
+export const MEDICINE_CONFIDENCE_LABEL: Record<string, string> = {
+  low: 'Low confidence',
+  medium: 'Medium confidence',
+  high: 'High confidence',
 };
 
 export function diagnosisView(s: DiagnosisStatus | null | undefined): StatusView {
@@ -434,6 +482,7 @@ const CAPABILITY_LABEL: Record<string, string> = {
   handwriting: 'Handwriting detection',
   handwriting_devanagari: 'Handwritten Devanagari (Hindi)',
   diagnosis: 'Diagnosis extraction',
+  prescription: 'Prescription understanding',
   local_quality_engine: 'Local quality engine (OpenCV)',
 };
 

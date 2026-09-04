@@ -102,6 +102,15 @@ class DiagnosisStatus(str, enum.Enum):
     unconfigured = "unconfigured"
 
 
+class PrescriptionStatus(str, enum.Enum):
+    pending = "pending"
+    extracted_pending_review = "extracted_pending_review"
+    not_a_prescription = "not_a_prescription"    # the page has no medicine list on it at all
+    unreadable = "unreadable"                    # handwriting too poor to transcribe with confidence
+    processing_failed = "processing_failed"
+    unconfigured = "unconfigured"
+
+
 class Qualifier(str, enum.Enum):
     final = "final"
     provisional = "provisional"
@@ -118,6 +127,7 @@ class JobKind(str, enum.Enum):
     quality = "quality"
     handwriting = "handwriting"
     diagnosis = "diagnosis"
+    prescription = "prescription"
 
 
 class JobState(str, enum.Enum):
@@ -289,6 +299,9 @@ class PageVersion(Base):
     diagnoses: Mapped[list[DiagnosisExtraction]] = relationship(
         back_populates="page_version", cascade="all, delete-orphan"
     )
+    prescription: Mapped[PrescriptionAnalysis | None] = relationship(
+        back_populates="page_version", uselist=False, cascade="all, delete-orphan"
+    )
     reviews: Mapped[list[PageReview]] = relationship(back_populates="page_version", cascade="all, delete-orphan")
 
 
@@ -424,6 +437,69 @@ class DiagnosisReview(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     extraction: Mapped[DiagnosisExtraction] = relationship(back_populates="reviews")
+
+
+# --------------------------------------------------------- prescription
+
+
+class PrescriptionAnalysis(Base):
+    """AI-assisted reading of a handwritten prescription.
+
+    Same discipline as ``DiagnosisExtraction``: ``raw_extracted_text`` is the immutable OCR
+    transcription (Google Document AI today) and is never overwritten by the interpretation step.
+    ``possible_interpretation`` / ``patient_explanation`` / ``medicines[].general_use`` are the LLM's
+    (Gemini) reading of that text — clearly a *reading*, never presented as a confirmed diagnosis or
+    an instruction to act on. ``requires_professional_confirmation`` defaults true and this codebase
+    never sets it false automatically; only a human reviewer's action does that, elsewhere.
+    """
+
+    __tablename__ = "prescription_analyses"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    page_version_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("page_versions.id"), unique=True, index=True
+    )
+    status: Mapped[PrescriptionStatus] = mapped_column(
+        Enum(PrescriptionStatus), default=PrescriptionStatus.pending, index=True
+    )
+    language_detected: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    raw_extracted_text: Mapped[str] = mapped_column(Text, default="")     # immutable OCR transcription
+    diagnosis_or_notes: Mapped[str] = mapped_column(Text, default="")     # verbatim, if written on the page
+    possible_interpretation: Mapped[str] = mapped_column(Text, default="")
+    patient_explanation: Mapped[str] = mapped_column(Text, default="")
+    safety_warnings_json: Mapped[list] = mapped_column(JSON, default=list)
+    uncertainties_json: Mapped[list] = mapped_column(JSON, default=list)
+    requires_professional_confirmation: Mapped[bool] = mapped_column(Boolean, default=True)
+    ocr_provider_used: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reasoning_provider_used: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_version: Mapped[str] = mapped_column(String(128), default="")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    page_version: Mapped[PageVersion] = relationship(back_populates="prescription")
+    medicines: Mapped[list[PrescriptionMedicine]] = relationship(
+        back_populates="analysis", cascade="all, delete-orphan"
+    )
+
+
+class PrescriptionMedicine(Base):
+    """One medicine line. Never populated from anything but text actually read on the page —
+    an uncertain reading is recorded with ``confidence='low'`` and an ``uncertainty`` note, not
+    guessed into a plausible-looking drug name."""
+
+    __tablename__ = "prescription_medicines"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    analysis_id: Mapped[str] = mapped_column(String(36), ForeignKey("prescription_analyses.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255), default="")
+    dose: Mapped[str] = mapped_column(String(128), default="")
+    frequency: Mapped[str] = mapped_column(String(128), default="")
+    duration: Mapped[str] = mapped_column(String(128), default="")
+    general_use: Mapped[str] = mapped_column(Text, default="")   # what it's generally used for; not a diagnosis
+    confidence: Mapped[str] = mapped_column(String(16), default="low")  # low | medium | high
+    uncertainty: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    analysis: Mapped[PrescriptionAnalysis] = relationship(back_populates="medicines")
 
 
 class PageReview(Base):

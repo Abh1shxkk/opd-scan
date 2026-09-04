@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     handwriting_provider: Literal["none", "google_docai", "azure_di"] = "none"
     handwriting_devanagari_provider: Literal["none", "azure_di"] = "none"
     diagnosis_provider: Literal["none", "google_docai", "azure_di"] = "none"
+    # Prescription understanding is two-stage: OCR (whichever provider is already configured above)
+    # produces the immutable text, then this reasoning provider turns it into structured medicines /
+    # plain-language explanation. Distinct from ocr_provider because reading text and reasoning about
+    # it are different capabilities — the OCR providers above cannot do the second half.
+    prescription_reasoning_provider: Literal["none", "gemini"] = "none"
 
     # Comma-separated language codes expected in scanned documents at this deployment. Drives the
     # OCR/handwriting language hints; a language not listed here is never assumed for a page.
@@ -85,6 +90,9 @@ class Settings(BaseSettings):
 
     azure_di_endpoint: str | None = None
     azure_di_key: str | None = None
+
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.0-flash"
 
     provider_timeout_seconds: int = 120
     provider_max_attempts: int = 3

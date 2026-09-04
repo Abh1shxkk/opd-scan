@@ -372,8 +372,8 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  reprocessPage: (pageVersionId: string, kind: 'quality' | 'handwriting' | 'diagnosis') =>
-    request<Job>(`/pages/${pageVersionId}/reprocess${qs({ kind })}`, { method: 'POST' }),
+  reprocessPage: (pageVersionId: string, stages: Array<'quality' | 'handwriting' | 'diagnosis' | 'prescription'>) =>
+    request<{ job_ids: string[] }>(`/pages/${pageVersionId}/reprocess${qs({ stages })}`, { method: 'POST' }),
 
   replacePage: (pageVersionId: string, file: File) => {
     const form = new FormData();

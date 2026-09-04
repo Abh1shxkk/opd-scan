@@ -121,6 +121,34 @@ class HandwritingOut(BaseModel):
     regions: list[HandwritingRegionOut]
 
 
+class MedicineOut(BaseModel):
+    name: str
+    dose: str
+    frequency: str
+    duration: str
+    general_use: str
+    confidence: str
+    uncertainty: str | None
+
+
+class PrescriptionOut(BaseModel):
+    status: str
+    language_detected: str | None
+    raw_extracted_text: str
+    diagnosis_or_notes: str
+    possible_interpretation: str
+    patient_explanation: str
+    medicines: list[MedicineOut]
+    safety_warnings: list[str]
+    uncertainties: list[str]
+    requires_professional_confirmation: bool
+    ocr_provider_used: str | None
+    reasoning_provider_used: str | None
+    model_version: str
+    error: str | None
+    computed_at: datetime
+
+
 class DiagnosisOut(BaseModel):
     id: str
     status: str
@@ -196,6 +224,9 @@ class PageSummary(BaseModel):
     handwriting_categories: list[str]
     handwriting_region_count: int | None = None
     diagnosis_status: str
+    # None when prescription analysis has never been requested for this page — distinct from any
+    # PrescriptionStatus value, all of which mean it was at least attempted.
+    prescription_status: str | None = None
     review_state: str
     uploaded_at: datetime
 
@@ -223,6 +254,7 @@ class PageDetail(PageSummary):
     # these, not the flat fields above (which exist for the pages list/table).
     quality: QualityOut | None = None
     handwriting: HandwritingOut | None = None
+    prescription: PrescriptionOut | None = None
 
 
 class PageReviewIn(BaseModel):

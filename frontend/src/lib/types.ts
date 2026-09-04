@@ -63,6 +63,18 @@ export type DiagnosisStatus =
   | 'unconfigured'
   | 'pending';
 
+/** `pending` here means "never requested" — prescription analysis is opt-in per page, unlike
+ * quality/handwriting/diagnosis which run on every upload. */
+export type PrescriptionStatus =
+  | 'pending'
+  | 'extracted_pending_review'
+  | 'not_a_prescription'
+  | 'unreadable'
+  | 'processing_failed'
+  | 'unconfigured';
+
+export type MedicineConfidence = 'low' | 'medium' | 'high';
+
 export type Qualifier =
   | 'final'
   | 'provisional'
@@ -200,6 +212,42 @@ export interface HandwritingResult {
   regions: HandwritingRegion[];
 }
 
+// -------------------------------------------------------- prescription
+
+export interface Medicine {
+  name: string;
+  dose: string;
+  frequency: string;
+  duration: string;
+  /** General purpose only — e.g. "commonly used to reduce fever". Never a diagnosis claim. */
+  general_use: string;
+  confidence: MedicineConfidence;
+  /** Set whenever confidence is below "high" — what specifically was ambiguous. */
+  uncertainty: string | null;
+}
+
+export interface PrescriptionResult {
+  status: PrescriptionStatus;
+  language_detected: string | null;
+  /** Immutable OCR transcription — never edited to match the interpretation below. */
+  raw_extracted_text: string;
+  diagnosis_or_notes: string;
+  /** Phrased as a reading ("it looks like..."), never a certainty. */
+  possible_interpretation: string;
+  /** Short plain-language summary for a non-medical reader. */
+  patient_explanation: string;
+  medicines: Medicine[];
+  safety_warnings: string[];
+  uncertainties: string[];
+  /** True whenever anything was uncertain — which is the normal case for handwriting. */
+  requires_professional_confirmation: boolean;
+  ocr_provider_used: string | null;
+  reasoning_provider_used: string | null;
+  model_version: string;
+  error: string | null;
+  computed_at: string;
+}
+
 // ----------------------------------------------------------- diagnosis
 
 export interface DiagnosisReview {
@@ -308,6 +356,8 @@ export interface PageSummary extends PageRef {
   handwriting_region_count?: number;
   diagnosis_status: DiagnosisStatus | null;
   diagnosis_count?: number;
+  /** null means prescription analysis has never been requested for this page. */
+  prescription_status?: PrescriptionStatus | null;
   review_state: ReviewState;
   colour_mode?: ColourMode;
   capture_profile?: CaptureProfile;
@@ -318,6 +368,7 @@ export interface PageSummary extends PageRef {
 export interface PageDetail extends PageSummary {
   quality: QualityResult | null;
   handwriting: HandwritingResult | null;
+  prescription: PrescriptionResult | null;
   diagnoses: DiagnosisExtraction[];
   versions: PageVersionRef[];
   reviews: PageReviewEntry[];

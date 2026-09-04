@@ -23,6 +23,7 @@ from app.models import (
     LogicalPage,
     PageReview,
     PageVersion,
+    PrescriptionAnalysis,
     User,
 )
 from app.models.core import HandwritingStatus, JobKind, PageClass
@@ -33,11 +34,13 @@ from app.schemas.api import (
     FindingOut,
     HandwritingOut,
     HandwritingRegionOut,
+    MedicineOut,
     PagedPages,
     PageDetail,
     PageReviewIn,
     PageSummary,
     PageVersionRef,
+    PrescriptionOut,
     QualityOut,
 )
 from app.services import annotate, ingest_service
@@ -105,6 +108,7 @@ def _summary(pv: PageVersion) -> PageSummary:
         handwriting_categories=sorted({r.category.value for r in hw.regions}) if hw else [],
         handwriting_region_count=len(hw.regions) if hw else None,
         diagnosis_status=_diagnosis_bucket(pv),
+        prescription_status=pv.prescription.status.value if pv.prescription else None,
         review_state=_review_state(pv),
         uploaded_at=doc.uploaded_at,
     )
@@ -126,6 +130,7 @@ def _load_page(db: Session, page_version_id: str) -> PageVersion:
             selectinload(PageVersion.quality),
             selectinload(PageVersion.handwriting),
             selectinload(PageVersion.diagnoses),
+            selectinload(PageVersion.prescription).selectinload(PrescriptionAnalysis.medicines),
             selectinload(PageVersion.reviews),
         )
     ).scalar_one_or_none()
@@ -152,6 +157,7 @@ def list_pages(
         selectinload(PageVersion.quality),
         selectinload(PageVersion.handwriting),
         selectinload(PageVersion.diagnoses),
+        selectinload(PageVersion.prescription),
         selectinload(PageVersion.reviews),
     )
     items = [_summary(pv) for pv in db.execute(stmt).scalars().unique()]
@@ -222,6 +228,34 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
         else None
     )
 
+    prescription_out = (
+        PrescriptionOut(
+            status=pv.prescription.status.value,
+            language_detected=pv.prescription.language_detected,
+            raw_extracted_text=pv.prescription.raw_extracted_text,
+            diagnosis_or_notes=pv.prescription.diagnosis_or_notes,
+            possible_interpretation=pv.prescription.possible_interpretation,
+            patient_explanation=pv.prescription.patient_explanation,
+            medicines=[
+                MedicineOut(
+                    name=m.name, dose=m.dose, frequency=m.frequency, duration=m.duration,
+                    general_use=m.general_use, confidence=m.confidence, uncertainty=m.uncertainty,
+                )
+                for m in pv.prescription.medicines
+            ],
+            safety_warnings=list(pv.prescription.safety_warnings_json or []),
+            uncertainties=list(pv.prescription.uncertainties_json or []),
+            requires_professional_confirmation=pv.prescription.requires_professional_confirmation,
+            ocr_provider_used=pv.prescription.ocr_provider_used,
+            reasoning_provider_used=pv.prescription.reasoning_provider_used,
+            model_version=pv.prescription.model_version,
+            error=pv.prescription.error,
+            computed_at=pv.prescription.computed_at,
+        )
+        if pv.prescription
+        else None
+    )
+
     diagnoses = [
         DiagnosisOut(
             id=d.id,
@@ -288,6 +322,7 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
         document_pages=document_pages,
         quality=quality_out,
         handwriting=handwriting_out,
+        prescription=prescription_out,
     )
 
 
@@ -427,7 +462,7 @@ def reprocess_page(
     actor: User = Depends(require_uploader),
 ):
     pv = _load_page(db, page_version_id)
-    unknown = [s for s in stages if s not in ("quality", "handwriting", "diagnosis")]
+    unknown = [s for s in stages if s not in ("quality", "handwriting", "diagnosis", "prescription")]
     if unknown:
         raise HTTPException(422, f"Unknown stage(s): {', '.join(unknown)}")
 

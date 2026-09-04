@@ -89,7 +89,9 @@ def test_a_configured_but_unusable_provider_is_still_unconfigured_not_ready(monk
 
 def test_health_never_raises_and_covers_every_registered_provider():
     report = provider_router.health()
-    assert {row["provider"] for row in report} == set(provider_router._REGISTRY)
+    assert {row["provider"] for row in report} == set(provider_router._REGISTRY) | set(
+        provider_router._REASONING_REGISTRY
+    )
     assert all("configured" in row for row in report)
 
 
@@ -162,9 +164,12 @@ def test_google_refuses_handwritten_devanagari_at_the_provider_level_too(google_
         GoogleDocAiProvider().analyse_page(b"\x89PNG", "image/png", ["hi-IN:handwritten"])
 
 
-def test_google_refuses_the_hint_form_the_pipeline_actually_sends(google_credentialled):
+def test_google_refuses_the_hint_form_the_pipeline_actually_sends(google_credentialled, monkeypatch):
     from app.services.pipeline import _language_hints
 
+    # DOCUMENT_LANGUAGES defaults to "en" only for this deployment (see config.py) — a Hindi hint is
+    # what a deployment that also expects Devanagari would set, and is what this test is about.
+    monkeypatch.setattr(settings, "document_languages", "en,hi")
     hints = _language_hints(handwritten=True)
     assert "hi:handwritten" in hints
     with pytest.raises(ProviderUnsupported):

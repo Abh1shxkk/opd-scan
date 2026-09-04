@@ -20,10 +20,12 @@ from app.processing.providers.azure_di import AzureDocIntelligenceProvider
 from app.processing.providers.base import (
     OcrPage,
     OcrProvider,
+    PrescriptionReasoningProvider,
     ProviderError,
     ProviderUnconfigured,
     ProviderUnsupported,
 )
+from app.processing.providers.gemini import GeminiPrescriptionProvider
 from app.processing.providers.google_docai import GoogleDocAiProvider
 from app.processing.providers.local_tesseract import LocalTesseractProvider
 
@@ -33,7 +35,12 @@ _REGISTRY: dict[str, type[OcrProvider]] = {
     "local_tesseract": LocalTesseractProvider,
 }
 
+_REASONING_REGISTRY: dict[str, type[PrescriptionReasoningProvider]] = {
+    "gemini": GeminiPrescriptionProvider,
+}
+
 _instances: dict[str, OcrProvider] = {}
+_reasoning_instances: dict[str, PrescriptionReasoningProvider] = {}
 _lock = threading.Lock()
 
 
@@ -47,6 +54,18 @@ def get_provider(name: str) -> OcrProvider:
         if name not in _instances:
             _instances[name] = cls()
         return _instances[name]
+
+
+def get_reasoning_provider(name: str) -> PrescriptionReasoningProvider:
+    if name in ("none", "", None):
+        raise ProviderUnconfigured("No provider selected for this capability.")
+    cls = _REASONING_REGISTRY.get(name)
+    if cls is None:
+        raise ProviderUnconfigured(f"Unknown provider '{name}'.")
+    with _lock:
+        if name not in _reasoning_instances:
+            _reasoning_instances[name] = cls()
+        return _reasoning_instances[name]
 
 
 class _RateLimiter:
@@ -122,6 +141,11 @@ def health() -> list[dict[str, Any]]:
             out.append(get_provider(name).health())
         except Exception as exc:  # health must never raise
             out.append({"provider": name, "configured": False, "reason": type(exc).__name__})
+    for name in _REASONING_REGISTRY:
+        try:
+            out.append(get_reasoning_provider(name).health())
+        except Exception as exc:  # health must never raise
+            out.append({"provider": name, "configured": False, "reason": type(exc).__name__})
     return out
 
 
@@ -154,5 +178,27 @@ def capability_status() -> dict[str, dict[str, Any]]:
             "setup_required": None if h.get("configured") else h.get("reason"),
             "detail": h,
         }
+
+    reasoning_name = settings.prescription_reasoning_provider
+    if reasoning_name == "none":
+        result["prescription"] = {
+            "status": "unconfigured",
+            "provider": None,
+            "setup_required": "No provider selected for 'prescription'.",
+        }
+    else:
+        try:
+            h = get_reasoning_provider(reasoning_name).health()
+            result["prescription"] = {
+                "status": "ready" if h.get("configured") else "unconfigured",
+                "provider": reasoning_name,
+                "setup_required": None if h.get("configured") else h.get("reason"),
+                "detail": h,
+            }
+        except Exception as exc:
+            result["prescription"] = {
+                "status": "unconfigured", "provider": reasoning_name, "setup_required": str(exc),
+            }
+
     result["local_quality_engine"] = {"status": "ready", "provider": "opencv", "setup_required": None}
     return result

@@ -88,3 +88,62 @@ class OcrProvider(ABC):
 
     def supports_handwriting(self, language: str) -> bool:
         return language.split("-")[0].lower() in {lang.split("-")[0].lower() for lang in self.handwriting_languages}
+
+
+# --------------------------------------------------------- prescription reasoning
+#
+# A different capability from OcrProvider above: this does not read pixels into text, it reasons
+# over text (and optionally the image) an OCR provider already produced. Kept as a separate
+# interface rather than another OcrProvider method because the two are genuinely different jobs —
+# one transcribes, the other interprets — and the "never invent" rule applies differently to each:
+# an OCR provider that cannot read a word must say so; a reasoning provider that is unsure what a
+# transcribed word means must say so instead of picking the most plausible drug name.
+
+
+@dataclass
+class MedicineReading:
+    name: str
+    dose: str
+    frequency: str
+    duration: str
+    general_use: str                    # what it is generally used for — never a diagnosis claim
+    confidence: str = "low"             # low | medium | high
+    uncertainty: str | None = None
+
+
+@dataclass
+class PrescriptionReasoning:
+    language_detected: str | None
+    diagnosis_or_notes: str
+    possible_interpretation: str
+    patient_explanation: str
+    medicines: list[MedicineReading] = field(default_factory=list)
+    safety_warnings: list[str] = field(default_factory=list)
+    uncertainties: list[str] = field(default_factory=list)
+    requires_professional_confirmation: bool = True
+    model_version: str = ""
+    provider: str = ""
+
+
+class PrescriptionReasoningProvider(ABC):
+    """Turns OCR text (plus the source image, for providers that can use it) into a structured,
+    conservative reading of a prescription. Never returns a confirmed diagnosis or an instruction to
+    start/stop/change medication — that framing is enforced in the prompt/response contract of each
+    implementation, not left to the caller to add afterwards."""
+
+    name: str = "abstract"
+
+    @abstractmethod
+    def interpret(
+        self,
+        ocr_text: str,
+        image_bytes: bytes,
+        mime: str,
+        language_hints: list[str] | None = None,
+    ) -> PrescriptionReasoning:
+        """Raises ProviderUnconfigured / ProviderError. Never raises for "handwriting too poor to
+        read" — that is a normal outcome, reported via a low-confidence / unreadable result."""
+
+    @abstractmethod
+    def health(self) -> dict[str, Any]:
+        """Report whether this provider is configured and reachable. Must not raise."""
