@@ -10,7 +10,6 @@ from __future__ import annotations
 import time
 from datetime import timedelta
 
-from celery import shared_task
 from celery.utils.log import get_task_logger
 
 from app.core.audit import redact
@@ -20,6 +19,7 @@ from app.models.core import IngestStatus, JobKind, JobState
 from app.services import jobs as job_service
 from app.services import pipeline
 from app.services.ingest_service import ingest_document
+from app.workers.celery_app import celery_app
 
 logger = get_task_logger(__name__)
 
@@ -59,22 +59,22 @@ def _run_stage(job_id: str, kind: JobKind) -> str:
         db.close()
 
 
-@shared_task(name="app.workers.tasks.run_quality", bind=True, max_retries=0)
+@celery_app.task(name="app.workers.tasks.run_quality", bind=True, max_retries=0)
 def run_quality(self, job_id: str) -> str:  # noqa: ANN001, ARG001
     return _run_stage(job_id, JobKind.quality)
 
 
-@shared_task(name="app.workers.tasks.run_handwriting", bind=True, max_retries=0)
+@celery_app.task(name="app.workers.tasks.run_handwriting", bind=True, max_retries=0)
 def run_handwriting(self, job_id: str) -> str:  # noqa: ANN001, ARG001
     return _run_stage(job_id, JobKind.handwriting)
 
 
-@shared_task(name="app.workers.tasks.run_diagnosis", bind=True, max_retries=0)
+@celery_app.task(name="app.workers.tasks.run_diagnosis", bind=True, max_retries=0)
 def run_diagnosis(self, job_id: str) -> str:  # noqa: ANN001, ARG001
     return _run_stage(job_id, JobKind.diagnosis)
 
 
-@shared_task(name="app.workers.tasks.run_ingest", bind=True, max_retries=0)
+@celery_app.task(name="app.workers.tasks.run_ingest", bind=True, max_retries=0)
 def run_ingest(self, job_id: str) -> str:  # noqa: ANN001, ARG001
     """Split an uploaded file into logical pages, then queue the three analysis stages per page."""
     db = SessionLocal()
@@ -116,7 +116,7 @@ def run_ingest(self, job_id: str) -> str:  # noqa: ANN001, ARG001
         db.close()
 
 
-@shared_task(name="app.workers.tasks.sweep_stalled_jobs")
+@celery_app.task(name="app.workers.tasks.sweep_stalled_jobs")
 def sweep_stalled_jobs() -> dict:
     db = SessionLocal()
     try:
@@ -129,7 +129,7 @@ def sweep_stalled_jobs() -> dict:
         db.close()
 
 
-@shared_task(name="app.workers.tasks.apply_retention")
+@celery_app.task(name="app.workers.tasks.apply_retention")
 def apply_retention() -> dict:
     """Delete stored files past their retention window. Audit rows are never removed here."""
     from sqlalchemy import select
