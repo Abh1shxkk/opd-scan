@@ -31,12 +31,14 @@ from app.processing.quality.rules import DEFECT_LABELS
 from app.schemas.api import (
     DiagnosisOut,
     FindingOut,
+    HandwritingOut,
     HandwritingRegionOut,
     PagedPages,
     PageDetail,
     PageReviewIn,
     PageSummary,
     PageVersionRef,
+    QualityOut,
 )
 from app.services import annotate, ingest_service
 from app.services import jobs as job_service
@@ -165,6 +167,7 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
         for f in pv.quality.findings:
             findings.append(
                 FindingOut(
+                    id=f.id,
                     code=f.defect_code,
                     label=DEFECT_LABELS.get(f.defect_code, f.defect_code),
                     severity=f.severity.value,
@@ -189,6 +192,34 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
                     model_version=r.model_version,
                 )
             )
+
+    quality_out = (
+        QualityOut(
+            overall=pv.quality.overall.value,
+            score=pv.quality.score,
+            engine_version=pv.quality.engine_version,
+            thresholds_hash=pv.quality.thresholds_hash,
+            provider_used=pv.quality.provider_used,
+            provider_error=pv.quality.provider_error,
+            computed_at=pv.quality.computed_at,
+            findings=findings,
+        )
+        if pv.quality
+        else None
+    )
+
+    handwriting_out = (
+        HandwritingOut(
+            status=pv.handwriting.status.value,
+            model_version=pv.handwriting.model_version,
+            provider_used=pv.handwriting.provider_used,
+            error=pv.handwriting.error,
+            computed_at=pv.handwriting.computed_at,
+            regions=hw_regions,
+        )
+        if pv.handwriting
+        else None
+    )
 
     diagnoses = [
         DiagnosisOut(
@@ -254,6 +285,8 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
             for r in sorted(pv.reviews, key=lambda r: r.created_at)
         ],
         document_pages=document_pages,
+        quality=quality_out,
+        handwriting=handwriting_out,
     )
 
 

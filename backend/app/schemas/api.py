@@ -81,6 +81,7 @@ class UploadResult(BaseModel):
 
 
 class FindingOut(BaseModel):
+    id: str
     code: str
     label: str
     severity: str
@@ -98,6 +99,26 @@ class HandwritingRegionOut(BaseModel):
     script_hint: str
     polygon: list[list[float]]
     model_version: str
+
+
+class QualityOut(BaseModel):
+    overall: str
+    score: float | None
+    engine_version: str
+    thresholds_hash: str
+    provider_used: str | None
+    provider_error: str | None
+    computed_at: datetime
+    findings: list[FindingOut]
+
+
+class HandwritingOut(BaseModel):
+    status: str
+    model_version: str
+    provider_used: str | None
+    error: str | None
+    computed_at: datetime
+    regions: list[HandwritingRegionOut]
 
 
 class DiagnosisOut(BaseModel):
@@ -184,6 +205,7 @@ class DocumentPageRef(BaseModel):
 
 
 class PageDetail(PageSummary):
+    # Flat fields, used by the pages list/table and by any consumer that only needs a summary.
     findings: list[FindingOut] = []
     handwriting_regions: list[HandwritingRegionOut] = []
     handwriting_error: str | None = None
@@ -194,6 +216,10 @@ class PageDetail(PageSummary):
     provider_error: str | None = None
     reviews: list[dict[str, Any]] = []
     document_pages: list[DocumentPageRef] = []
+    # Nested, used by the page-detail viewer — the frontend's QualityPanel/HandwritingPanel read
+    # these, not the flat fields above (which exist for the pages list/table).
+    quality: QualityOut | None = None
+    handwriting: HandwritingOut | None = None
 
 
 class PageReviewIn(BaseModel):
