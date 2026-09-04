@@ -22,7 +22,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 @router.get("/thresholds")
 def get_thresholds(db: Session = Depends(get_db), _: User = Depends(current_user)):
     return {
-        "values": settings_store.get_thresholds(db),
+        "thresholds": settings_store.get_thresholds(db),
         "defaults": DEFAULT_THRESHOLDS,
         "defect_labels": DEFECT_LABELS,
     }

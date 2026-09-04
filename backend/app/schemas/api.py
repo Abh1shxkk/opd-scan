@@ -138,7 +138,9 @@ class DiagnosisOut(BaseModel):
     extracted_at: datetime
     is_reviewed: bool
     reviews: list["DiagnosisReviewOut"] = []
-    source: dict[str, Any] | None = None
+    # The frontend's DiagnosisDetail type reads this field as `page` (a PageRef shape) — the key
+    # and its inner field names must match exactly, not just carry equivalent data.
+    page: dict[str, Any] | None = None
 
 
 class DiagnosisReviewOut(BaseModel):
@@ -192,6 +194,7 @@ class PageSummary(BaseModel):
     defect_codes: list[str]
     handwriting_status: str
     handwriting_categories: list[str]
+    handwriting_region_count: int | None = None
     diagnosis_status: str
     review_state: str
     uploaded_at: datetime

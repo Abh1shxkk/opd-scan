@@ -75,19 +75,21 @@ def _serialise(d: DiagnosisExtraction, db: Session, include_source: bool = True)
             )
             for r in d.reviews
         ],
-        source=(
+        page=(
             {
-                # Exact provenance, as required: file, page, and the region on that page.
+                # Field names match the frontend's PageRef type exactly (document_filename, ordinal,
+                # width, height) — this is consumed as `d.page`, not remapped on the way in.
                 "page_version_id": pv.id,
                 "logical_page_id": page.id,
                 "document_id": doc.id,
-                "filename": doc.original_filename,
-                "page_number": page.ordinal,
+                "document_filename": doc.original_filename,
+                "ordinal": page.ordinal,
                 "printed_page_label": page.printed_page_label,
                 "version_no": pv.version_no,
-                "page_width": pv.width,
-                "page_height": pv.height,
+                "width": pv.width,
+                "height": pv.height,
                 "batch_id": doc.batch_id,
+                "batch_name": doc.batch.name if doc.batch else None,
                 "case_id": doc.case_id,
                 "patient_ref": doc.case.patient_ref if doc.case else None,
                 "encounter_ref": doc.case.encounter_ref if doc.case else None,
@@ -115,7 +117,7 @@ def _load(db: Session, extraction_id: str) -> DiagnosisExtraction:
     return d
 
 
-@router.get("", response_model=list[DiagnosisOut])
+@router.get("")
 def list_diagnoses(
     status: str | None = None,
     reviewed: bool | None = None,
@@ -146,7 +148,14 @@ def list_diagnoses(
     rows = list(db.execute(stmt).scalars().unique())
     if reviewed is not None:
         rows = [d for d in rows if bool(d.reviews) is reviewed]
-    return [_serialise(d, db) for d in rows]
+    # A plain array here means the frontend's `data.items` is always undefined — wrapped to match
+    # the Paged<T> contract every other list endpoint (/pages, /documents) already follows.
+    return {
+        "items": [_serialise(d, db) for d in rows],
+        "total": len(rows),
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/{extraction_id}", response_model=DiagnosisOut)

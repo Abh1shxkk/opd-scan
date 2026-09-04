@@ -103,6 +103,7 @@ def _summary(pv: PageVersion) -> PageSummary:
         defect_codes=sorted({f.defect_code for f in quality.findings}) if quality else [],
         handwriting_status=hw.status.value if hw else HandwritingStatus.pending.value,
         handwriting_categories=sorted({r.category.value for r in hw.regions}) if hw else [],
+        handwriting_region_count=len(hw.regions) if hw else None,
         diagnosis_status=_diagnosis_bucket(pv),
         review_state=_review_state(pv),
         uploaded_at=doc.uploaded_at,
