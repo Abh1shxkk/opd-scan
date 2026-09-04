@@ -288,6 +288,7 @@ def sniff_stream_mime(filename: str) -> str:
         "png": "image/png",
         "tif": "image/tiff",
         "tiff": "image/tiff",
+        "webp": "image/webp",
     }.get(ext, "application/octet-stream")
 
 

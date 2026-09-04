@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     # --- upload limits (configurable per requirement 1) -------------------
     max_upload_mb: int = 200
     max_pages_per_document: int = 500
-    allowed_extensions: str = "pdf,jpg,jpeg,png,tif,tiff"
+    allowed_extensions: str = "pdf,jpg,jpeg,png,tif,tiff,webp"
 
     # --- rendering --------------------------------------------------------
     render_dpi: int = 150
