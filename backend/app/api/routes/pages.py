@@ -29,6 +29,7 @@ from app.models import (
 from app.models.core import HandwritingStatus, JobKind, PageClass
 from app.processing import ingest
 from app.processing.quality.rules import DEFECT_LABELS
+from app.services import threshold_autotune
 from app.schemas.api import (
     DiagnosisOut,
     FindingOut,
@@ -418,11 +419,22 @@ def review_page(
         db, actor_id=actor.id, action=f"page.review.{payload.action}", entity_type="page_version",
         entity_id=pv.id, ip=request.client.host if request.client else None,
     )
+    db.flush()
+    autotuned: list[dict] = []
+    if payload.action == "correct_finding":
+        # See services/threshold_autotune.py: bounded, audited, automatic threshold adjustment from
+        # accumulated "this is not a defect" corrections. Runs inline — it is a handful of indexed
+        # queries, not a job worth queuing.
+        autotuned = threshold_autotune.maybe_autotune(db)
     db.commit()
     # The session still holds the pre-commit collection, so the state must be re-read rather than
     # recomputed from the cached object — otherwise the client is told the review did not land.
     db.expire_all()
-    return {"ok": True, "review_state": _review_state(_load_page(db, page_version_id))}
+    return {
+        "ok": True,
+        "review_state": _review_state(_load_page(db, page_version_id)),
+        "thresholds_autotuned": autotuned,
+    }
 
 
 @router.post("/pages/{page_version_id}/replace")

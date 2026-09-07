@@ -79,7 +79,7 @@ export default function PageViewerPage() {
   const review = useMutation({
     mutationFn: (payload: { action: PageReviewAction; comment?: string; payload?: Record<string, unknown> }) =>
       api.reviewPage(pageVersionId, payload),
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['page', pageVersionId] });
       queryClient.invalidateQueries({ queryKey: ['pages'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -93,6 +93,13 @@ export default function PageViewerPage() {
               : 'Comment added.',
         'success',
       );
+      for (const change of data.thresholds_autotuned) {
+        toast.push(
+          `Auto-tuned: enough corrections on "${change.defect_code}" — its threshold moved from ` +
+            `${change.from} to ${change.to} (${change.sample_size} corrections). See Settings to review.`,
+          'success',
+        );
+      }
     },
     onError: (e) => toast.push(e instanceof Error ? e.message : 'The action could not be saved.', 'error'),
   });

@@ -26,6 +26,7 @@ import type {
   Paged,
   PageDetail,
   PageReviewAction,
+  PageReviewResult,
   PageSummary,
   PrescriptionAnalysisResponse,
   PrescriptionAnalysisSummary,
@@ -434,7 +435,7 @@ export const api = {
     pageVersionId: string,
     payload: { action: PageReviewAction; comment?: string; payload?: Record<string, unknown> },
   ) =>
-    request<PageDetail>(`/pages/${pageVersionId}/review`, {
+    request<PageReviewResult>(`/pages/${pageVersionId}/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

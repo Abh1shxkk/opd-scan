@@ -89,6 +89,21 @@ export type ReviewState = 'pending' | 'accepted' | 'rescan_requested';
 
 export type PageReviewAction = 'accept' | 'request_rescan' | 'correct_finding' | 'correct_prescription' | 'comment';
 
+/** One bounded, automatic threshold adjustment made from accumulated "not a defect" corrections. */
+export interface ThresholdAutotuneChange {
+  defect_code: string;
+  threshold: string;
+  from: number;
+  to: number;
+  sample_size: number;
+}
+
+export interface PageReviewResult {
+  ok: boolean;
+  review_state: ReviewState;
+  thresholds_autotuned: ThresholdAutotuneChange[];
+}
+
 export type DiagnosisReviewAction = 'confirm' | 'correct' | 'reject';
 
 export type IngestStatus =

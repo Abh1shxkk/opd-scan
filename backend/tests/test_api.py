@@ -128,7 +128,7 @@ def test_a_reviewer_may_review_a_page(client, db, auth, sample_page):
         json={"action": "accept", "comment": "legible"},
     )
     assert response.status_code == 200
-    assert response.json() == {"ok": True, "review_state": "accepted"}
+    assert response.json() == {"ok": True, "review_state": "accepted", "thresholds_autotuned": []}
 
     detail = client.get(f"/api/pages/{sample_page.id}", headers=auth["reviewer"]).json()
     assert detail["review_state"] == "accepted"
