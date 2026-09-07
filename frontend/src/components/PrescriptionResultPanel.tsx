@@ -3,14 +3,46 @@
  *
  * Shared between the standalone analyzer's "just finished" flow and the dedicated per-document
  * result page, so the two never drift out of sync on what a reading actually shows.
+ *
+ * Also owns the "Correct this reading" action. A correction is recorded as a page review (like a
+ * scan-quality correction) — it never rewrites the stored reading. The reviewer's note is later fed
+ * back to Gemini as a general lesson on future prescriptions (see backend pipeline.run_prescription
+ * and gemini.py) — never as training, and never carrying this patient's own medicine/dose data into
+ * someone else's reading, only the written lesson itself.
  */
 
+import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import { MEDICINE_CONFIDENCE_LABEL, prescriptionView } from '../lib/status';
 import type { PrescriptionAnalysisPage } from '../lib/types';
+import { Modal } from './Modal';
 import { StatusPill } from './StatusPill';
+import { useToast } from './Toast';
+import { Button, TextArea } from './ui';
 
 export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAnalysisPage; multi: boolean }) {
+  const { can } = useAuth();
+  const toast = useToast();
+  const [correcting, setCorrecting] = useState(false);
   const p = page.prescription;
+
+  const correct = useMutation({
+    mutationFn: (input: { category: string; comment: string }) =>
+      api.reviewPage(page.page_version_id, {
+        action: 'correct_prescription',
+        comment: input.comment,
+        payload: { category: input.category },
+      }),
+    onSuccess: () => {
+      setCorrecting(false);
+      toast.push('Correction recorded. It will be used as a lesson for future readings.', 'success');
+    },
+    onError: (e) => toast.push(e instanceof Error ? e.message : 'The correction could not be saved.', 'error'),
+  });
+
+  const canCorrect = can('reviewer') && Boolean(p) && !p?.error;
 
   return (
     <div className={multi ? 'border-t border-slate-200 pt-4 first:border-t-0 first:pt-0 dark:border-slate-800' : ''}>
@@ -22,6 +54,15 @@ export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAna
         <StatusPill view={prescriptionView(p?.status)} showDetail />
         {p?.language_detected ? (
           <span className="text-xs text-slate-600 dark:text-slate-400">Language: {p.language_detected}</span>
+        ) : null}
+        {canCorrect ? (
+          <button
+            type="button"
+            onClick={() => setCorrecting(true)}
+            className="ml-auto text-xs font-medium text-sky-800 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:text-sky-300"
+          >
+            Correct this reading
+          </button>
         ) : null}
       </div>
 
@@ -127,7 +168,87 @@ export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAna
           </p>
         </div>
       )}
+
+      <CorrectPrescriptionDialog
+        open={correcting}
+        onClose={() => setCorrecting(false)}
+        onSubmit={(category, comment) => correct.mutate({ category, comment })}
+        submitting={correct.isPending}
+      />
     </div>
+  );
+}
+
+const CORRECTION_CATEGORIES = [
+  ['medicine', 'A medicine name, dose, frequency or duration is wrong'],
+  ['diagnosis', 'The diagnosis/notes or interpretation is wrong'],
+  ['confidence', 'Something was marked uncertain but is actually clear (or the other way round)'],
+  ['other', 'Something else'],
+] as const;
+
+function CorrectPrescriptionDialog({
+  open,
+  onClose,
+  onSubmit,
+  submitting,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (category: string, comment: string) => void;
+  submitting: boolean;
+}) {
+  const [category, setCategory] = useState<(typeof CORRECTION_CATEGORIES)[number][0]>('medicine');
+  const [comment, setComment] = useState('');
+
+  if (!open) return null;
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Correct this reading"
+      description="Your correction is recorded alongside the original reading, which is never overwritten. Describe the mistake and the correct reading in your own words — do not include the patient's name or other identifying details, since this note is also used as a general lesson for future prescriptions."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={comment.trim().length === 0 || submitting}
+            onClick={() => onSubmit(category, comment.trim())}
+          >
+            {submitting ? 'Recording…' : 'Record correction'}
+          </Button>
+        </>
+      }
+    >
+      <fieldset className="mb-3">
+        <legend className="mb-1 text-xs font-medium text-slate-800 dark:text-slate-200">
+          What is wrong with it?
+        </legend>
+        {CORRECTION_CATEGORIES.map(([value, label]) => (
+          <label key={value} className="flex items-start gap-2 py-0.5 text-sm">
+            <input
+              type="radio"
+              name="category"
+              value={value}
+              checked={category === value}
+              onChange={() => setCategory(value)}
+              className="mt-0.5 h-4 w-4 border-slate-500 text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+            />
+            <span className="text-slate-900 dark:text-slate-100">{label}</span>
+          </label>
+        ))}
+      </fieldset>
+
+      <TextArea
+        label="What is the correct reading, and why (required)"
+        rows={4}
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+      />
+    </Modal>
   );
 }
 

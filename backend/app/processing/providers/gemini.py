@@ -103,12 +103,21 @@ list and say so plainly in "possible_interpretation".
 - Never tell the patient to start, stop, or change any medication. That instruction is out of scope \
 for you entirely.
 
-OCR text:
+{lessons_block}OCR text:
 ---
 {ocr_text}
 ---
 
 Respond with JSON matching the required schema only."""
+
+_LESSONS_BLOCK = """Lessons from a human reviewer correcting past readings of OTHER prescriptions. \
+Apply the general pattern each lesson points at (e.g. a frequency notation you may be misreading, a \
+type of mistake to double-check for) — but these are about different patients and different \
+handwriting, so never copy any drug name, dose, or number from a lesson into this reading. Only \
+report what is actually present in the text and image below.
+{notes}
+
+"""
 
 
 class GeminiPrescriptionProvider(PrescriptionReasoningProvider):
@@ -127,6 +136,7 @@ class GeminiPrescriptionProvider(PrescriptionReasoningProvider):
         image_bytes: bytes,
         mime: str,
         language_hints: list[str] | None = None,
+        reviewer_notes: list[str] | None = None,
     ) -> PrescriptionReasoning:
         if not self._configured():
             raise ProviderUnconfigured(
@@ -138,12 +148,19 @@ class GeminiPrescriptionProvider(PrescriptionReasoningProvider):
                 "cloud AI service."
             )
 
+        lessons_block = (
+            _LESSONS_BLOCK.format(notes="\n".join(f"- {n}" for n in reviewer_notes))
+            if reviewer_notes
+            else ""
+        )
+        prompt = _PROMPT.format(ocr_text=ocr_text or "(no text was transcribed)", lessons_block=lessons_block)
+
         body: dict[str, Any] = {
             "contents": [
                 {
                     "role": "user",
                     "parts": [
-                        {"text": _PROMPT.format(ocr_text=ocr_text or "(no text was transcribed)")},
+                        {"text": prompt},
                         {"inline_data": {"mime_type": mime, "data": base64.b64encode(image_bytes).decode()}},
                     ],
                 }

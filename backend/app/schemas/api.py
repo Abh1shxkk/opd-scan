@@ -258,7 +258,7 @@ class PageDetail(PageSummary):
 
 
 class PageReviewIn(BaseModel):
-    action: str                       # accept | request_rescan | correct_finding | comment
+    action: str                       # accept | request_rescan | correct_finding | correct_prescription | comment
     comment: str = ""
     payload: dict[str, Any] = {}
 

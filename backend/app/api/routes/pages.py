@@ -403,7 +403,7 @@ def review_page(
     db: Session = Depends(get_db),
     actor: User = Depends(require_reviewer),
 ):
-    if payload.action not in ("accept", "request_rescan", "correct_finding", "comment"):
+    if payload.action not in ("accept", "request_rescan", "correct_finding", "correct_prescription", "comment"):
         raise HTTPException(422, f"Unknown review action '{payload.action}'")
     pv = _load_page(db, page_version_id)
     review = PageReview(

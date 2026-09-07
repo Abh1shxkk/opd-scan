@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import numpy as np
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -19,6 +20,7 @@ from app.models import (
     DiagnosisExtraction,
     HandwritingRegion,
     HandwritingResult,
+    PageReview,
     PageVersion,
     PrescriptionAnalysis,
     PrescriptionMedicine,
@@ -344,6 +346,26 @@ def run_diagnosis(db: Session, pv: PageVersion) -> list[DiagnosisExtraction]:
 # -------------------------------------------------------------- prescription
 
 
+_MAX_PRESCRIPTION_LESSONS = 5
+
+
+def _recent_prescription_lessons(db: Session, limit: int = _MAX_PRESCRIPTION_LESSONS) -> list[str]:
+    """Reviewer-written notes from past "correct this reading" actions on any prescription page.
+
+    Deliberately just the reviewer's free-text explanation, not the corrected medicine/dose data
+    itself — that keeps another patient's specifics out of a prompt built for this patient, while
+    still passing along the pattern the reviewer wanted the model to learn (see gemini.py's prompt
+    for how this is framed to the model).
+    """
+    rows = db.execute(
+        select(PageReview.comment)
+        .where(PageReview.action == "correct_prescription", PageReview.comment != "")
+        .order_by(PageReview.created_at.desc())
+        .limit(limit)
+    ).scalars().all()
+    return list(rows)
+
+
 def run_prescription(db: Session, pv: PageVersion) -> PrescriptionAnalysis:
     """Two-stage: read the page with whichever OCR provider is already configured (``ocr_provider``
     — Google Document AI in this deployment), then hand that text plus the image to the configured
@@ -391,7 +413,10 @@ def run_prescription(db: Session, pv: PageVersion) -> PrescriptionAnalysis:
 
     reasoning_provider = provider_router.get_reasoning_provider(settings.prescription_reasoning_provider)
     try:
-        reading = reasoning_provider.interpret(ocr_page.full_text, payload, mime, _language_hints())
+        reading = reasoning_provider.interpret(
+            ocr_page.full_text, payload, mime, _language_hints(),
+            reviewer_notes=_recent_prescription_lessons(db),
+        )
     except ProviderUnconfigured as exc:
         result.status = PrescriptionStatus.unconfigured
         result.error = str(exc)

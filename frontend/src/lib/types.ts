@@ -87,7 +87,7 @@ export type Qualifier =
 
 export type ReviewState = 'pending' | 'accepted' | 'rescan_requested';
 
-export type PageReviewAction = 'accept' | 'request_rescan' | 'correct_finding' | 'comment';
+export type PageReviewAction = 'accept' | 'request_rescan' | 'correct_finding' | 'correct_prescription' | 'comment';
 
 export type DiagnosisReviewAction = 'confirm' | 'correct' | 'reject';
 

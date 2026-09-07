@@ -140,9 +140,15 @@ class PrescriptionReasoningProvider(ABC):
         image_bytes: bytes,
         mime: str,
         language_hints: list[str] | None = None,
+        reviewer_notes: list[str] | None = None,
     ) -> PrescriptionReasoning:
         """Raises ProviderUnconfigured / ProviderError. Never raises for "handwriting too poor to
-        read" — that is a normal outcome, reported via a low-confidence / unreadable result."""
+        read" — that is a normal outcome, reported via a low-confidence / unreadable result.
+
+        ``reviewer_notes`` are free-text lessons from past human corrections on *other* prescriptions
+        (never this document's own patient data) — a lightweight feedback loop a provider may fold
+        into its prompt as general guidance. A provider that ignores this argument must still accept
+        it; it is never required to change behaviour."""
 
     @abstractmethod
     def health(self) -> dict[str, Any]:
