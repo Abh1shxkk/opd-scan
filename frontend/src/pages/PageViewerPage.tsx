@@ -35,6 +35,7 @@ import {
   handwritingCategoryLabel,
   handwritingView,
   MEDICINE_CONFIDENCE_LABEL,
+  NEEDS_ATTENTION_CLASSES,
   pageClassView,
   prescriptionView,
   qualifierView,
@@ -288,9 +289,17 @@ function ViewerBody({
             {page.encounter_ref ? ` · encounter ${page.encounter_ref}` : ''}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusPill view={pageClassView(page.page_class)} />
-          <StatusPill view={reviewStateView(page.review_state)} />
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill view={pageClassView(page.page_class)} />
+            <StatusPill view={reviewStateView(page.review_state)} />
+          </div>
+          {NEEDS_ATTENTION_CLASSES.includes(page.page_class) && page.review_state === 'accepted' ? (
+            <p className="max-w-xs text-right text-xs text-slate-600 dark:text-slate-400">
+              The quality engine's flag is a permanent record of the scan as captured — accepting a
+              page does not clear it. It means a reviewer looked and chose to accept it anyway.
+            </p>
+          ) : null}
         </div>
       </header>
 
@@ -554,6 +563,13 @@ function QualityPanel({
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <StatusPill view={pageClassView(page.page_class)} showDetail />
       </div>
+
+      {NEEDS_ATTENTION_CLASSES.includes(page.page_class) && page.review_state === 'accepted' ? (
+        <p className="mb-3 rounded border border-slate-300 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+          This flag stays on record even though the page was accepted — accepting means a reviewer
+          chose to proceed despite it, not that the defect stopped being true.
+        </p>
+      ) : null}
 
       {score ? (
         <p className="mb-2 text-sm text-slate-700 dark:text-slate-300">
