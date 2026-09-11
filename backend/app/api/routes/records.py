@@ -26,7 +26,7 @@ from app.db import get_db
 from app.models import Batch, Case, Document, LogicalPage, PageVersion, User
 from app.models.core import IngestStatus
 from app.processing import ingest
-from app.schemas.api import BatchIn, BatchOut, CaseIn, CaseOut, UploadResult
+from app.schemas.api import BatchIn, BatchOut, CaseIn, CaseOut, CasePatch, UploadResult
 from app.services import completeness as completeness_service
 from app.services import ingest_service
 
@@ -82,7 +82,12 @@ def get_batch(batch_id: str, db: Session = Depends(get_db), _: User = Depends(cu
 # -------------------------------------------------------------------- cases
 
 
-def case_out(case: Case, document_count: int = 0) -> CaseOut:
+def case_out(
+    case: Case,
+    document_count: int = 0,
+    page_count: int = 0,
+    first_page_version_id: str | None = None,
+) -> CaseOut:
     """The one place a Case becomes a CaseOut.
 
     Built as a helper rather than spelled out at each return site on purpose: this response has
@@ -108,7 +113,10 @@ def case_out(case: Case, document_count: int = 0) -> CaseOut:
         mlc_type=case.mlc_type,
         admission_date=case.admission_date,
         discharge_date=case.discharge_date,
+        record_date=case.record_date,
         created_at=case.created_at,
+        page_count=page_count,
+        first_page_version_id=first_page_version_id,
     )
 
 
@@ -127,11 +135,51 @@ def list_cases(
         stmt = stmt.where(Case.patient_ref.ilike(f"%{patient_ref}%"))
     if encounter_ref:
         stmt = stmt.where(Case.encounter_ref.ilike(f"%{encounter_ref}%"))
-    out = []
-    for c in db.execute(stmt).scalars():
-        count = db.execute(select(func.count(Document.id)).where(Document.case_id == c.id)).scalar() or 0
-        out.append(case_out(c, count))
-    return out
+    cases = list(db.execute(stmt).scalars())
+    if not cases:
+        return []
+
+    ids = [c.id for c in cases]
+
+    # Two aggregate queries for the whole list rather than two per row: this screen is the one a
+    # records clerk lives in, and it grows with the archive.
+    doc_counts = dict(
+        db.execute(
+            select(Document.case_id, func.count(Document.id))
+            .where(Document.case_id.in_(ids))
+            .group_by(Document.case_id)
+        ).all()
+    )
+
+    page_rows = db.execute(
+        select(
+            Document.case_id,
+            PageVersion.id,
+            LogicalPage.ordinal,
+            Document.uploaded_at,
+        )
+        .join(LogicalPage, LogicalPage.document_id == Document.id)
+        .join(PageVersion, PageVersion.logical_page_id == LogicalPage.id)
+        .where(Document.case_id.in_(ids), PageVersion.is_active.is_(True))
+        .order_by(Document.uploaded_at.asc(), LogicalPage.ordinal.asc())
+    ).all()
+
+    page_counts: dict[str, int] = {}
+    first_page: dict[str, str] = {}
+    for case_id, pv_id, _ordinal, _uploaded in page_rows:
+        page_counts[case_id] = page_counts.get(case_id, 0) + 1
+        # Ordered above, so the first row seen for a case is its first page.
+        first_page.setdefault(case_id, pv_id)
+
+    return [
+        case_out(
+            c,
+            doc_counts.get(c.id, 0),
+            page_counts.get(c.id, 0),
+            first_page.get(c.id),
+        )
+        for c in cases
+    ]
 
 
 @router.post("/cases", response_model=CaseOut, status_code=201)
@@ -159,6 +207,79 @@ def create_case(payload: CaseIn, db: Session = Depends(get_db), actor: User = De
     audit.record(db, actor_id=actor.id, action="case.create", entity_type="case", entity_id=case.id)
     db.commit()
     return case_out(case)
+
+
+@router.patch("/cases/{case_id}", response_model=CaseOut)
+def update_case(
+    case_id: str,
+    payload: CasePatch,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_uploader),
+):
+    """Correct the details on a patient record.
+
+    Only the fields actually sent are written — `exclude_unset` rather than a blanket assignment —
+    so an edit form that touches one value cannot quietly blank the eleven it did not show. The MR
+    and IPD numbers are not editable here: they identify the case, and rewriting an identity in
+    place is how one patient's pages end up filed under another's.
+    """
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(404, "Case not found")
+
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        return case_out(case)
+
+    admitted = changes.get("admission_date", case.admission_date)
+    discharged = changes.get("discharge_date", case.discharge_date)
+    if admitted and discharged and discharged < admitted:
+        raise HTTPException(422, "The discharge date is before the admission date. Check both dates.")
+
+    for field, value in changes.items():
+        setattr(case, field, value)
+
+    # The audit records which fields moved, never the patient text that moved into them.
+    audit.record(
+        db,
+        actor_id=actor.id,
+        action="case.update",
+        entity_type="case",
+        entity_id=case.id,
+        meta={"fields": sorted(changes.keys())},
+    )
+    db.add(case)
+    db.commit()
+    db.refresh(case)
+    count = db.execute(select(func.count(Document.id)).where(Document.case_id == case.id)).scalar() or 0
+    return case_out(case, count)
+
+
+@router.delete("/cases/{case_id}", status_code=204)
+def delete_case(case_id: str, db: Session = Depends(get_db), actor: User = Depends(require_admin)):
+    """Delete a patient record and everything filed under it.
+
+    Admin only, and genuinely destructive: the case's documents, their pages, every scan version
+    and every analysis go with it. The stored files are left to the same storage sweep that
+    handles a deleted document, so this endpoint never removes bytes it did not record removing.
+    """
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(404, "Case not found")
+
+    doc_ids = [
+        d.id for d in db.execute(select(Document).where(Document.case_id == case.id)).scalars()
+    ]
+    audit.record(
+        db,
+        actor_id=actor.id,
+        action="case.delete",
+        entity_type="case",
+        entity_id=case.id,
+        meta={"documents": len(doc_ids), "encounter_ref": case.encounter_ref},
+    )
+    db.delete(case)
+    db.commit()
 
 
 @router.patch("/cases/{case_id}/confirm", response_model=CaseOut)

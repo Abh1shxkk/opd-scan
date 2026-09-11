@@ -6,7 +6,11 @@ import App from './App';
 import { AuthProvider } from './lib/auth';
 import { ToastProvider } from './components/Toast';
 import { ApiError } from './lib/api';
+import { initTheme } from './lib/theme';
 import './index.css';
+
+// Before the first paint, so a reader who chose light does not get a frame of dark first.
+initTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {

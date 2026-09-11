@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import io
+from datetime import date
 
 import pytest
 
@@ -625,3 +626,112 @@ def test_exports_are_marked_no_store(client, auth, sample_page):
     response = client.get("/api/reports/pages.csv", headers=auth["reviewer"])
     assert response.headers["Cache-Control"] == "private, no-store"
     assert "attachment" in response.headers["Content-Disposition"]
+
+
+# ------------------------------------------------------- patient record CRUD
+
+
+def _intake(client, auth, mr: str = "MR-001", ipd: str = "IPD-001", **extra):
+    """Create a patient record through the intake screen's own endpoint."""
+    data = {"mr_number": mr, "ipd_number": ipd, "patient_name": "A Patient", **extra}
+    response = client.post("/api/intake", headers=auth["uploader"], data=data)
+    assert response.status_code == 200, response.text
+    return response.json()["case"]
+
+
+def test_intake_records_the_date_on_the_form_not_todays_date(client, auth):
+    """A backlog being digitised was filled in long before it was typed up."""
+    case = _intake(client, auth, record_date="2014-09-22")
+    assert case["record_date"] == "2014-09-22"
+
+
+def test_intake_defaults_the_record_date_to_today_when_it_is_left_alone(client, auth):
+    case = _intake(client, auth)
+    assert case["record_date"] == date.today().isoformat()
+
+
+def test_a_patient_record_can_be_corrected_without_blanking_the_untouched_fields(client, auth):
+    case = _intake(client, auth, department="Surgery", consultant_name="Dr Who")
+
+    response = client.patch(
+        f"/api/cases/{case['id']}", headers=auth["uploader"], json={"department": "Orthopaedics"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["department"] == "Orthopaedics"
+    # The eleven fields the edit form did not send must survive it.
+    assert body["consultant_name"] == "Dr Who"
+    assert body["patient_name"] == "A Patient"
+
+
+def test_a_patient_records_identifiers_are_not_editable(client, auth):
+    """The MR and IPD numbers identify the case; rewriting them in place merges patients."""
+    case = _intake(client, auth)
+    client.patch(
+        f"/api/cases/{case['id']}",
+        headers=auth["uploader"],
+        json={"patient_ref": "SOMEONE-ELSE", "encounter_ref": "SOMEONE-ELSE"},
+    )
+    after = client.get("/api/cases", headers=auth["uploader"]).json()[0]
+    assert after["patient_ref"] == "MR-001"
+    assert after["encounter_ref"] == "IPD-001"
+
+
+def test_a_discharge_before_the_admission_is_refused_on_edit(client, auth):
+    case = _intake(client, auth, admission_date="2026-03-10")
+    response = client.patch(
+        f"/api/cases/{case['id']}", headers=auth["uploader"], json={"discharge_date": "2026-03-01"}
+    )
+    assert response.status_code == 422
+
+
+def test_only_an_admin_may_delete_a_patient_record(client, auth):
+    case = _intake(client, auth)
+    assert client.delete(f"/api/cases/{case['id']}", headers=auth["uploader"]).status_code == 403
+    assert client.delete(f"/api/cases/{case['id']}", headers=auth["reviewer"]).status_code == 403
+    assert client.delete(f"/api/cases/{case['id']}", headers=auth["admin"]).status_code == 204
+    assert client.get("/api/cases", headers=auth["admin"]).json() == []
+
+
+def test_deleting_a_patient_record_takes_its_documents_with_it(client, auth):
+    """The record is the unit a clerk deletes; leaving orphan scans behind would be worse."""
+    files = {"files": ("scan.pdf", make_pdf_bytes(2), "application/pdf")}
+    response = client.post(
+        "/api/intake",
+        headers=auth["uploader"],
+        data={"mr_number": "MR-009", "ipd_number": "IPD-009"},
+        files=files,
+    )
+    assert response.status_code == 200
+    case_id = response.json()["case"]["id"]
+    assert client.get("/api/documents", headers=auth["admin"]).json()["total"] == 1
+
+    assert client.delete(f"/api/cases/{case_id}", headers=auth["admin"]).status_code == 204
+    assert client.get("/api/documents", headers=auth["admin"]).json()["total"] == 0
+
+
+def test_the_patient_list_carries_the_first_page_so_a_row_can_open_its_scan(client, auth):
+    files = {"files": ("scan.pdf", make_pdf_bytes(3), "application/pdf")}
+    client.post(
+        "/api/intake",
+        headers=auth["uploader"],
+        data={"mr_number": "MR-010", "ipd_number": "IPD-010"},
+        files=files,
+    )
+    # Pages are rendered by the worker, so before it runs the record honestly reports no pages
+    # rather than a count it has not earned.
+    before = client.get("/api/cases", headers=auth["uploader"]).json()[0]
+    assert before["document_count"] == 1
+    assert before["page_count"] == 0
+    assert before["first_page_version_id"] is None
+
+    run_queued_jobs()
+
+    row = client.get("/api/cases", headers=auth["uploader"]).json()[0]
+    assert row["document_count"] == 1
+    assert row["page_count"] == 3
+    assert row["first_page_version_id"]
+
+    # The id is real: it resolves to a page the viewer can open.
+    page = client.get(f"/api/pages/{row['first_page_version_id']}", headers=auth["uploader"])
+    assert page.status_code == 200

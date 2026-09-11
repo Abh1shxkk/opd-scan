@@ -88,7 +88,7 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8">
       <div
-        className="fixed inset-0 bg-ink/60 backdrop-blur-[1px]"
+        className="scrim fixed inset-0 backdrop-blur-[1px]"
         aria-hidden="true"
         onClick={onClose}
       />

@@ -131,6 +131,7 @@ async def create_intake(
     mlc_type: str = Form(""),
     admission_date: str = Form(""),
     discharge_date: str = Form(""),
+    record_date: str = Form(""),
     db: Session = Depends(get_db),
     actor: User = Depends(require_uploader),
 ):
@@ -146,6 +147,7 @@ async def create_intake(
 
     admitted = _parse_date(admission_date, "date of admission")
     discharged = _parse_date(discharge_date, "date of discharge")
+    recorded = _parse_date(record_date, "record date")
     if admitted and discharged and discharged < admitted:
         raise HTTPException(422, "The discharge date is before the admission date. Check both dates.")
 
@@ -175,6 +177,11 @@ async def create_intake(
         case.admission_date = admitted
     if discharged:
         case.discharge_date = discharged
+    # Defaults to today only when the clerk left it alone; an entered value is never overwritten.
+    if recorded:
+        case.record_date = recorded
+    elif created_case and case.record_date is None:
+        case.record_date = date.today()
 
     db.add(case)
     db.flush()

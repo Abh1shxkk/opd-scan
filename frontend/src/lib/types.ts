@@ -150,6 +150,13 @@ export interface IntakeFormValues {
   mlc_type: string;
   admission_date: string;
   discharge_date: string;
+  /**
+   * The date on the form being entered.
+   *
+   * Defaults to today, but is editable: a records team digitising a backlog is typing a form that
+   * was filled in years ago, and dating that record "today" is simply wrong.
+   */
+  record_date: string;
 }
 
 /** One bounded, automatic threshold adjustment made from accumulated "not a defect" corrections. */
@@ -211,6 +218,13 @@ export interface Batch {
   page_count?: number;
 }
 
+/**
+ * A patient/admission record, with everything the intake form captured.
+ *
+ * `patient_ref` is the MR number and `encounter_ref` the IPD number; both identify the case and
+ * are not editable after creation. Every other field is a human-entered value, and an empty
+ * string means "not recorded" — never "we did not find it".
+ */
 export interface Case {
   id: string;
   batch_id: string;
@@ -220,6 +234,38 @@ export interface Case {
   confirmed_by: string | null;
   confirmed_at: string | null;
   created_at: string;
+  document_count: number;
+  /** Active page versions across this case's documents. */
+  page_count: number;
+  /** The first page of the earliest document — what "open the scan" navigates to. */
+  first_page_version_id: string | null;
+  patient_name: string;
+  department: string;
+  mobile: string;
+  disease: string;
+  icd_code: string;
+  consultant_name: string;
+  discharge_type: string;
+  mlc_type: string;
+  admission_date: string | null;
+  discharge_date: string | null;
+  /** The date on the form, which for a digitised backlog is not today. */
+  record_date: string | null;
+}
+
+/** The editable subset. The MR and IPD numbers are absent on purpose: they are the identity. */
+export interface CasePatch {
+  patient_name?: string;
+  department?: string;
+  mobile?: string;
+  disease?: string;
+  icd_code?: string;
+  consultant_name?: string;
+  discharge_type?: string;
+  mlc_type?: string;
+  admission_date?: string | null;
+  discharge_date?: string | null;
+  record_date?: string | null;
 }
 
 export interface DocumentSummary {

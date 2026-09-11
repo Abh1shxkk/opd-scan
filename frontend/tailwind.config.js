@@ -15,8 +15,9 @@
  */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
-  // 'media': the app follows the operating system's prefers-color-scheme. Clinical workstations
-  // are configured centrally, so an in-app override would fight the site's own setting.
+  // 'media' is the default: clinical workstations are configured centrally, so the OS setting is
+  // the right starting point. It is not a lock — index.css also honours a `data-theme` attribute
+  // written by the Appearance control, which wins in both directions.
   darkMode: 'media',
   theme: {
     extend: {

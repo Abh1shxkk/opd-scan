@@ -235,9 +235,17 @@ class Case(Base):
     mlc_type: Mapped[str] = mapped_column(String(64), default="")
     admission_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     discharge_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # The date the record was entered. Not always today: a team digitising a backlog is typing a
+    # form that was filled in years ago, and the date on that form is the one that belongs here.
+    # NULL means "not recorded" for every case created before this field existed.
+    record_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     batch: Mapped[Batch] = relationship(back_populates="cases")
-    documents: Mapped[list[Document]] = relationship(back_populates="case")
+    # A case owns its documents: deleting the case deletes them, and each document already
+    # cascades to its pages, versions and analyses.
+    documents: Mapped[list[Document]] = relationship(
+        back_populates="case", cascade="all, delete-orphan"
+    )
 
 
 class Document(Base):

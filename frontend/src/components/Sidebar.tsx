@@ -9,6 +9,7 @@
  * The active item is filled rather than marked with a coloured edge: an inked field is how a
  * printed form says "this one", and it cannot be mistaken for decoration.
  */
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -16,24 +17,34 @@ import {
   ClipboardCheck,
   Stethoscope,
   FilePlus2,
-  UploadCloud,
   BarChart3,
   Pill,
   Settings as SettingsIcon,
   LogOut,
   ScanLine,
+  Monitor,
+  Sun,
+  Moon,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
+import { applyTheme, readTheme, THEME_LABEL, THEMES, type Theme } from '../lib/theme';
 import type { Role } from '../lib/types';
 
+/**
+ * `/documents` and `/upload` are deliberately absent.
+ *
+ * Neither was removed — both still work at their own address, and `/patients` links into the
+ * document list for any record whose scans need the wider view. They left the menu because the
+ * patient list now answers the same question in the place a clerk actually starts: a person, not
+ * a file. Nothing lost, one fewer fork in the road.
+ */
 const MAIN_NAV: Array<{ to: string; label: string; role?: Role; icon: LucideIcon }> = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/documents', label: 'Documents', icon: FileStack },
+  { to: '/patients', label: 'Patient records', icon: FileStack },
   { to: '/review', label: 'Review queue', role: 'reviewer', icon: ClipboardCheck },
   { to: '/diagnoses', label: 'Diagnosis review', role: 'reviewer', icon: Stethoscope },
   { to: '/intake', label: 'New file upload', role: 'uploader', icon: FilePlus2 },
-  { to: '/upload', label: 'Bulk upload', role: 'uploader', icon: UploadCloud },
   { to: '/prescriptions', label: 'Prescription analyzer', role: 'uploader', icon: Pill },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
 ];
@@ -85,6 +96,51 @@ function NavGroup({
   );
 }
 
+const THEME_ICON: Record<Theme, LucideIcon> = { system: Monitor, light: Sun, dark: Moon };
+
+/**
+ * Light / dark / follow the workstation.
+ *
+ * Three explicit states rather than a two-way switch: "system" is a real answer here, and a
+ * toggle that silently pins a machine to one scheme is how a centrally-configured ward display
+ * ends up fighting its own site setting.
+ */
+function ThemeControl() {
+  const [theme, setTheme] = useState<Theme>(() => readTheme());
+
+  function choose(next: Theme) {
+    setTheme(next);
+    applyTheme(next);
+  }
+
+  return (
+    <div className="hidden border-t border-rule-2 px-2.5 py-2 md:block">
+      <p className="field-label mb-1.5">Appearance</p>
+      <div role="group" aria-label="Colour scheme" className="flex border border-rule-2">
+        {THEMES.map((t) => {
+          const Icon = THEME_ICON[t];
+          const active = theme === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => choose(t)}
+              aria-pressed={active}
+              title={THEME_LABEL[t]}
+              className={`flex flex-1 items-center justify-center gap-1 py-1.5 font-label text-[10px] font-semibold uppercase tracking-label transition-colors duration-150 ease-chart [&:not(:first-child)]:border-l [&:not(:first-child)]:border-rule-2 ${
+                active ? 'bg-chart text-paper' : 'text-ink-2 hover:bg-chart/[0.07] hover:text-ink'
+              }`}
+            >
+              <Icon size={12} strokeWidth={2.25} aria-hidden="true" />
+              {THEME_LABEL[t]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function Sidebar() {
   const { user, logout, can } = useAuth();
   const displayName = user?.full_name || user?.email || '';
@@ -129,6 +185,8 @@ export function Sidebar() {
         <NavGroup label="Main menu" items={MAIN_NAV} can={can} />
         <NavGroup label="Setting" items={SETTINGS_NAV} can={can} />
       </nav>
+      <ThemeControl />
+
       {/* Signature block, the way a form is signed off at the foot. */}
       <div className="hidden border-t border-rule-2 px-2.5 py-2 md:block">
         <div className="flex items-center gap-2">

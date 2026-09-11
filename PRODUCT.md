@@ -78,8 +78,10 @@ verdict gets more right about this hospital's scanners the more it is used.
 - **Every mutation is audited.** Patient text is structurally excluded from logs.
 - **Cloud processing is opt-in and defaults off.** Every provider can be set to `none`, and a
   single flag disables all cloud calls — enforced inside each provider, not just at the router.
-- **Colour scheme follows the operating system, with no in-app override**, because clinical
-  workstations are configured centrally and an app-level toggle would fight the site's own setting.
+- **Colour scheme follows the operating system by default**, because clinical workstations are
+  configured centrally. It is a default rather than a rule: a reader can choose light or dark
+  explicitly, and that choice is remembered on that machine. Requested by the user after first
+  use — the original "no override" reading was inferred from a code comment, not confirmed.
 - One screen (the standalone prescription analyzer) deliberately bypasses the queue and answers
   synchronously, so the user waits in-request rather than polling.
 
@@ -100,10 +102,17 @@ MR number, `encounter_ref` the IPD number); *logical page* = the stable identity
 record"; *page version* = one scan of it. The six page classes and the qualifier list above are
 fixed vocabulary, not labels to be reworded for style.
 
-**Known-broken areas a redesign must not paper over** (they are contract bugs, and a screen that
-looks finished while silently failing is worse than one that looks unfinished): saving thresholds in
-Settings 422s on every request; the retention panel always renders empty; diagnosis safety blocks
-never render because the backend does not send those fields; reviewer names display as raw UUIDs.
+**Contract bugs, now fixed and verified against the running API** (recorded because the principle
+survives the fix: a screen that looks finished while silently failing is worse than one that looks
+unfinished). Saving thresholds 422'd on every request — the body key is `values`, the client sent
+`thresholds`. The retention panel read field names the API never sent. Three diagnosis safety blocks
+never rendered: the extractor produced `note`, `cleaning_applied` and `ambiguous_abbreviations` and
+the pipeline persisted them inside `region_json`, but nothing lifted them back out. Reviewer names
+displayed as raw UUIDs.
+
+**Still open, and not a UI defect:** no endpoint persists `ThresholdAutotuneChange`, so the history
+of an auto-tuned threshold cannot be shown on load. The interface draws the mark; it needs a backend
+that stores the history. Left visibly unbuilt rather than given an invented one.
 
 **Access-control constraint:** there is currently **no location or tenancy scoping** — any
 authenticated user of any role can read any patient's records. The legacy .NET system it is intended

@@ -83,9 +83,13 @@
     }
   }
 
+  /* The same chart read on a light box rather than under a lamp.
+     Declared once and applied from two places: the operating system's own setting, and an explicit
+     choice the reader made in the app. The media rule is guarded so that choosing "light" wins
+     over a dark OS, and the attribute rule repeats the values so that choosing "dark" wins over a
+     light one — a theme control has to win in both directions or it only half works. */
   @media (prefers-color-scheme: dark) {
-    :root {
-      /* The same chart read on a light box rather than under a lamp. */
+    :root:not([data-theme='light']) {
       --c-paper: 21 24 27;
       --c-paper-2: 29 33 37;
       --c-paper-3: 37 42 47;
@@ -98,6 +102,29 @@
       --c-note: 217 164 65;
       --c-plot: 232 121 106;
     }
+  }
+
+  :root[data-theme='dark'] {
+    --c-paper: 21 24 27;
+    --c-paper-2: 29 33 37;
+    --c-paper-3: 37 42 47;
+    --c-rule: 51 58 64;
+    --c-rule-2: 74 83 91;
+    --c-ink: 232 230 223;
+    --c-ink-2: 152 160 168;
+    --c-chart: 127 179 224;
+    --c-band: 111 191 132;
+    --c-note: 217 164 65;
+    --c-plot: 232 121 106;
+  }
+
+  /* Form controls, scrollbars and the caret follow the chosen theme, not just the OS one. */
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+  }
+
+  :root[data-theme='light'] {
+    color-scheme: light;
   }
 
   /* The browser's own `[hidden] { display: none }` comes from the UA sheet, so it loses to any
@@ -205,6 +232,17 @@
 
   .sheet-head {
     @apply border-b border-rule-2 bg-paper-3 px-3 py-2;
+  }
+
+  /* ------------------------------------------------------------------ scrim --
+     The wash behind a dialog.
+     Deliberately NOT drawn in `ink`: ink inverts between the two themes, so an
+     ink scrim dims the page in light mode and washes it out with near-white in
+     dark mode. A scrim is shadow rather than ink — it darkens in both schemes,
+     so it is the one surface that holds its value when the theme flips.
+     ---------------------------------------------------------------------- */
+  .scrim {
+    background: rgb(8 10 12 / 0.62);
   }
 
   /* The double rule a printed form uses to close a section head. */

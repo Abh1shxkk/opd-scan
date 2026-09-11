@@ -81,7 +81,33 @@ class CaseOut(BaseModel):
     mlc_type: str = ""
     admission_date: date | None = None
     discharge_date: date | None = None
+    record_date: date | None = None
     created_at: datetime | None = None
+    # Enough to open the scan without a second round-trip: how many pages this case has, and the
+    # first one, which is what the "open" action on the patient list navigates to.
+    page_count: int = 0
+    first_page_version_id: str | None = None
+
+
+class CasePatch(BaseModel):
+    """Editable intake fields.
+
+    Every field is optional and only the ones actually sent are written, so a form that edits one
+    value cannot blank the rest. `patient_ref` and `encounter_ref` are deliberately absent: they
+    identify the case, and renaming an identity in place is how two patients' records merge.
+    """
+
+    patient_name: str | None = None
+    department: str | None = None
+    mobile: str | None = None
+    disease: str | None = None
+    icd_code: str | None = None
+    consultant_name: str | None = None
+    discharge_type: str | None = None
+    mlc_type: str | None = None
+    admission_date: date | None = None
+    discharge_date: date | None = None
+    record_date: date | None = None
 
 
 class IntakeOut(BaseModel):

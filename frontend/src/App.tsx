@@ -13,6 +13,7 @@ import { Sidebar } from './components/Sidebar';
 
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import PatientsPage from './pages/PatientsPage';
 import UploadPage from './pages/UploadPage';
 import DocumentsPage from './pages/DocumentsPage';
 import PageViewerPage from './pages/PageViewerPage';
@@ -81,6 +82,9 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/patients" element={<PatientsPage />} />
+                {/* Still reachable, and linked from a patient record that has several files —
+                    it left the menu, not the application. */}
                 <Route path="/documents" element={<DocumentsPage />} />
                 <Route path="/pages/:pageVersionId" element={<PageViewerPage />} />
                 <Route

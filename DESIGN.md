@@ -252,8 +252,13 @@ colour-vision profile, and a screen reader.
 **The One Theme, Two Values Rule.** There are no `dark:` variants in this application — a grep
 returns zero. The eleven variables flip under `prefers-color-scheme` and every utility follows.
 Dark is the same chart read on a light box: stock goes to `#15181b`, ink to `#e8e6df`, and the four
-status inks lighten to hold contrast. No in-app theme toggle exists; clinical workstations are
-centrally configured.
+status inks lighten to hold contrast. The system setting is the default, not a lock: a
+`data-theme` attribute on the root element overrides it in either direction, set from the
+Appearance control in the sidebar and remembered per machine.
+
+**The Scrim Exception.** Exactly one surface does not flip: the wash behind a dialog. Drawn in
+`ink` it would dim the page in light mode and wash it out with near-white in dark, so it is
+declared once as `rgb(8 10 12 / 0.62)` and darkens in both schemes. A scrim is shadow, not ink.
 
 ## Typography
 

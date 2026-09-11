@@ -10,6 +10,7 @@
  */
 
 import type {
+  CasePatch,
   Batch,
   Capability,
   CapabilitiesResponse,
@@ -273,6 +274,17 @@ export const api = {
     }),
   /** Records who confirmed the patient/encounter reference. References are never auto-merged. */
   confirmCase: (id: string) => request<Case>(`/cases/${id}/confirm`, { method: 'PATCH' }),
+
+  /** Correct a patient's details. Only the fields passed are written. */
+  updateCase: (id: string, patch: CasePatch) =>
+    request<Case>(`/cases/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }),
+
+  /** Admin only, and destructive: the case's documents, pages and analyses go with it. */
+  deleteCase: (id: string) => request<void>(`/cases/${id}`, { method: 'DELETE' }),
 
   getCompleteness: (caseId: string) => request<CompletenessResponse>(`/cases/${caseId}/completeness`),
   recomputeCompleteness: (caseId: string) =>

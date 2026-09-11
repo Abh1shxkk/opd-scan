@@ -37,7 +37,15 @@ const EMPTY: IntakeFormValues = {
   mlc_type: '',
   admission_date: '',
   discharge_date: '',
+  record_date: todayLocal(),
 };
+
+/** Today, in the local timezone. `toISOString()` would hand back yesterday for half the world. */
+function todayLocal(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 const CLIENT_MAX_BYTES = 200 * 1024 * 1024;
 
@@ -147,7 +155,15 @@ export default function PatientIntakePage() {
         {/* ------------------------------------------------ basic information */}
         <Panel title="Basic information">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <TextInput label="Date" value={new Date().toLocaleDateString('en-GB')} readOnly disabled />
+            {/* Editable, and defaulted to today rather than fixed to it: this is the date on the
+                form being entered, and a backlog being digitised was filled in long before now. */}
+            <TextInput
+              label="Date"
+              type="date"
+              value={form.record_date}
+              onChange={(e) => set('record_date', e.target.value)}
+              hint="The date on the form. Defaults to today; change it when entering an older record."
+            />
             <TextInput label="Uploader name" value={user?.full_name || user?.email || ''} readOnly disabled />
 
             <div>
