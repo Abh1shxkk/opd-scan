@@ -14,10 +14,13 @@ import { Sidebar } from './components/Sidebar';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import PatientsPage from './pages/PatientsPage';
+import PatientDetailPage from './pages/PatientDetailPage';
 import UploadPage from './pages/UploadPage';
 import DocumentsPage from './pages/DocumentsPage';
 import PageViewerPage from './pages/PageViewerPage';
 import ReviewQueuePage from './pages/ReviewQueuePage';
+import ReviewDocumentsPage from './pages/ReviewDocumentsPage';
+import ReviewDocumentPage from './pages/ReviewDocumentPage';
 import DiagnosisReviewPage from './pages/DiagnosisReviewPage';
 import DiagnosisQueuePage from './pages/DiagnosisQueuePage';
 import ReportsPage from './pages/ReportsPage';
@@ -83,15 +86,34 @@ export default function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/patients" element={<PatientsPage />} />
+                <Route path="/patients/:caseId" element={<PatientDetailPage />} />
                 {/* Still reachable, and linked from a patient record that has several files —
                     it left the menu, not the application. */}
                 <Route path="/documents" element={<DocumentsPage />} />
                 <Route path="/pages/:pageVersionId" element={<PageViewerPage />} />
+                {/* The queue is now file-first. The page-at-a-time list it replaced still works
+                    at /review/pages for anyone who preferred it. */}
                 <Route
                   path="/review"
                   element={
                     <RequireRole role="reviewer">
+                      <ReviewDocumentsPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/review/pages"
+                  element={
+                    <RequireRole role="reviewer">
                       <ReviewQueuePage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/review/:documentId"
+                  element={
+                    <RequireRole role="reviewer">
+                      <ReviewDocumentPage />
                     </RequireRole>
                   }
                 />

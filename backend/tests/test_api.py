@@ -735,3 +735,63 @@ def test_the_patient_list_carries_the_first_page_so_a_row_can_open_its_scan(clie
     # The id is real: it resolves to a page the viewer can open.
     page = client.get(f"/api/pages/{row['first_page_version_id']}", headers=auth["uploader"])
     assert page.status_code == 200
+
+
+def test_pages_can_be_filtered_to_one_document(client, auth):
+    """The file-at-a-time review queue asks for one PDF's pages; without this filter it would
+    silently receive every page in the archive."""
+    for mr, pages in (("MR-020", 2), ("MR-021", 3)):
+        client.post(
+            "/api/intake",
+            headers=auth["uploader"],
+            data={"mr_number": mr, "ipd_number": f"IPD-{mr}"},
+            files={"files": ("scan.pdf", make_pdf_bytes(pages), "application/pdf")},
+        )
+    run_queued_jobs()
+
+    docs = client.get("/api/documents", headers=auth["reviewer"]).json()["items"]
+    assert len(docs) == 2
+    everything = client.get("/api/pages", headers=auth["reviewer"]).json()["total"]
+    assert everything == 5
+
+    for d in docs:
+        scoped = client.get(
+            f"/api/pages?document_id={d['id']}", headers=auth["reviewer"]
+        ).json()
+        assert scoped["total"] == d["page_count"]
+        assert {p["document_id"] for p in scoped["items"]} == {d["id"]}
+
+
+def test_the_document_list_rolls_up_what_is_inside_each_file(client, auth):
+    client.post(
+        "/api/intake",
+        headers=auth["uploader"],
+        data={"mr_number": "MR-030", "ipd_number": "IPD-030"},
+        files={"files": ("scan.pdf", make_pdf_bytes(3), "application/pdf")},
+    )
+    run_queued_jobs()
+
+    doc = client.get("/api/documents", headers=auth["reviewer"]).json()["items"][0]
+    assert doc["pages_active"] == 3
+    assert sum(doc["page_class_counts"].values()) == 3
+    # Outstanding review work is a subset of the pages, never more than them.
+    assert 0 <= doc["awaiting_review"] <= 3
+
+
+def test_needs_review_narrows_the_file_list_without_disagreeing_with_the_dashboard(client, auth):
+    client.post(
+        "/api/intake",
+        headers=auth["uploader"],
+        data={"mr_number": "MR-031", "ipd_number": "IPD-031"},
+        files={"files": ("scan.pdf", make_pdf_bytes(3), "application/pdf")},
+    )
+    run_queued_jobs()
+
+    listed = client.get("/api/documents?needs_review=true", headers=auth["reviewer"]).json()
+    dashboard = client.get("/api/dashboard", headers=auth["reviewer"]).json()
+    awaiting = dashboard["totals"]["awaiting_review"]
+
+    # A file appears in the narrowed list exactly when it has outstanding pages, and the total
+    # across files matches the dashboard's own figure.
+    assert sum(d["awaiting_review"] for d in listed["items"]) == awaiting
+    assert all(d["awaiting_review"] > 0 for d in listed["items"])

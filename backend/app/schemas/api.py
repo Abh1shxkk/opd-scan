@@ -87,6 +87,12 @@ class CaseOut(BaseModel):
     # first one, which is what the "open" action on the patient list navigates to.
     page_count: int = 0
     first_page_version_id: str | None = None
+    # Live processing state, so the patient list can say what is still happening rather than
+    # showing a finished-looking row for a record the workers have not touched yet.
+    documents_pending: int = 0
+    pages_measured: int = 0
+    jobs_active: int = 0
+    ingest_failed: int = 0
 
 
 class CasePatch(BaseModel):

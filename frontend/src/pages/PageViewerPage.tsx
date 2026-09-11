@@ -340,10 +340,15 @@ function ViewerBody({
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_26rem]">
-        {/* ------------------------------------------------------------ image */}
+        {/*
+          ------------------------------------------------------------- image
+          Pinned once there is room for two columns. A reviewer reads the findings in the right
+          rail *against* the page, so scrolling the findings must not carry the page off the top of
+          the screen — and it is the image pane, not the document, that scrolls when they zoom.
+        */}
         <section
           aria-label="Page image"
-          className="sheet"
+          className="sheet xl:sticky xl:top-0 xl:self-start"
         >
           <div className="flex flex-wrap items-center gap-2 border-b border-rule p-2">
             <div

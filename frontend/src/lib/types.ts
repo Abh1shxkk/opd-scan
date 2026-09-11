@@ -239,6 +239,18 @@ export interface Case {
   page_count: number;
   /** The first page of the earliest document — what "open the scan" navigates to. */
   first_page_version_id: string | null;
+  /**
+   * Live processing state.
+   *
+   * Uploading a file and having it analysed are not the same moment: the ingest rasterises the
+   * pages, then the quality engine, OCR and the interpreter work through them. A record with no
+   * pages yet is "still working", not "empty", and these four fields are what lets the list say
+   * which — without ever claiming a page was measured before it was.
+   */
+  documents_pending: number;
+  pages_measured: number;
+  jobs_active: number;
+  ingest_failed: number;
   patient_name: string;
   department: string;
   mobile: string;
@@ -285,6 +297,16 @@ export interface DocumentSummary {
   ingest_error: string | null;
   /** Roll-up of active page versions in this document, when the API supplies it. */
   page_class_counts?: Partial<Record<PageClass, number>>;
+  /** Active page versions in this document. */
+  pages_active?: number;
+  /**
+   * Pages nobody has accepted or sent for rescan yet.
+   *
+   * Same definition as the dashboard's awaiting-review figure: needs-review or rescan classes that
+   * carry no closing review. A page the engine could not measure is not counted — it is
+   * unmeasured, not un-reviewed, and a reviewer cannot act on it.
+   */
+  awaiting_review?: number;
 }
 
 // ------------------------------------------------------------- quality

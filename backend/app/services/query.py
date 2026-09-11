@@ -148,6 +148,9 @@ class PageFilters:
     case_id: str | None = None
     patient_ref: str | None = None
     encounter_ref: str | None = None
+    # One uploaded file. The review queue works a document at a time, so this is how it asks for
+    # "the pages of this PDF" without pulling the whole archive and filtering in the browser.
+    document_id: str | None = None
     date_from: datetime | date | str | None = None
     date_to: datetime | date | str | None = None
     page_class: list[str] = field(default_factory=list)
@@ -172,6 +175,7 @@ class PageFilters:
         simple = [
             ("Batch", self.batch_id),
             ("Case", self.case_id),
+            ("Document", self.document_id),
             ("Patient ref", self.patient_ref),
             ("Encounter ref", self.encounter_ref),
             ("Uploaded from", _fmt_dt(_coerce_dt(self.date_from, end_of_day=False))),
@@ -284,6 +288,8 @@ def _apply_filters(stmt: Select, f: PageFilters) -> Select:
         conditions.append(Document.batch_id == f.batch_id)
     if f.case_id:
         conditions.append(Document.case_id == f.case_id)
+    if f.document_id:
+        conditions.append(LogicalPage.document_id == f.document_id)
     if f.patient_ref:
         conditions.append(Case.patient_ref == f.patient_ref)
     if f.encounter_ref:

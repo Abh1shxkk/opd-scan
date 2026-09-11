@@ -275,6 +275,16 @@ export const api = {
   /** Records who confirmed the patient/encounter reference. References are never auto-merged. */
   confirmCase: (id: string) => request<Case>(`/cases/${id}/confirm`, { method: 'PATCH' }),
 
+  getCase: (id: string) => request<Case>(`/cases/${id}`),
+
+  /**
+   * The original upload, exactly as it arrived.
+   *
+   * A path rather than a URL: the route is behind a bearer token, so it has to be fetched into an
+   * object URL rather than dropped into an `href`.
+   */
+  documentFilePath: (documentId: string) => `/documents/${documentId}/file`,
+
   /** Correct a patient's details. Only the fields passed are written. */
   updateCase: (id: string, patch: CasePatch) =>
     request<Case>(`/cases/${id}`, {

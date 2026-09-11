@@ -18,12 +18,13 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileStack, Pencil, ScanEye, Trash2 } from 'lucide-react';
+import { FileStack, FileText, Pencil, ScanEye, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/status';
 import type { Case, CasePatch } from '../lib/types';
 import { ChartHead, MarginNote, Panel } from '../components/Sheet';
+import { isWorking, ProcessingState } from '../components/ProcessingState';
 import { Modal } from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { Button, EmptyState, ErrorState, Select, Spinner, TextInput } from '../components/ui';
@@ -57,10 +58,16 @@ export default function PatientsPage() {
         patient_ref: mr.trim() || undefined,
         encounter_ref: ipd.trim() || undefined,
       }),
+    // The analysis runs on a worker, so the list refreshes itself while anything is outstanding
+    // and then stops. Polling a settled archive forever would be a request per clerk per 4s for
+    // no new information.
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some(isWorking) ? 4000 : false,
   });
 
   const rows = q.data ?? [];
   const withScans = useMemo(() => rows.filter((c) => c.page_count > 0).length, [rows]);
+  const working = useMemo(() => rows.filter(isWorking).length, [rows]);
 
   return (
     <div className="space-y-3">
@@ -70,6 +77,15 @@ export default function PatientsPage() {
         meta={[
           { label: 'Records in view', value: <span className="tabular-nums">{rows.length}</span> },
           { label: 'With scans attached', value: <span className="tabular-nums">{withScans}</span> },
+          {
+            label: 'Still processing',
+            value:
+              working === 0 ? (
+                <span className="text-ink-2">Nothing outstanding</span>
+              ) : (
+                <span className="tabular-nums text-chart">{working} in progress</span>
+              ),
+          },
           {
             label: 'Identifiers',
             value: 'MR and IPD numbers are fixed after entry',
@@ -141,6 +157,7 @@ export default function PatientsPage() {
                     <th scope="col" className="text-right">
                       Scans
                     </th>
+                    <th scope="col">Processing</th>
                     {/* Sticky, so the actions stay reachable when the table scrolls sideways —
                         an action column you have to scroll to find is an action nobody takes. */}
                     <th scope="col" className="sticky right-0 z-20 bg-paper-3">
@@ -202,6 +219,10 @@ export default function PatientsPage() {
                         </span>
                       </td>
 
+                      <td className="min-w-[10rem]">
+                        <ProcessingState record={c} />
+                      </td>
+
                       <td className="sticky right-0 z-10 whitespace-nowrap bg-paper group-hover/row:bg-paper-2 group-[:nth-child(even)]/row:bg-paper-2">
                         <div className="flex items-center gap-1">
                           {c.first_page_version_id ? (
@@ -231,6 +252,15 @@ export default function PatientsPage() {
                               <FileStack size={12} strokeWidth={2.5} aria-hidden="true" />
                             </Link>
                           ) : null}
+
+                          <Link
+                            to={`/patients/${c.id}`}
+                            title="All of this patient's details, their files, and every page"
+                            className="inline-flex min-h-[26px] items-center gap-1 border border-rule-2 bg-paper-2 px-2 font-label text-[11px] font-semibold uppercase tracking-label text-ink transition-colors duration-150 ease-chart hover:bg-paper-3"
+                          >
+                            <FileText size={12} strokeWidth={2.5} aria-hidden="true" />
+                            Details
+                          </Link>
 
                           <Button
                             variant="secondary"

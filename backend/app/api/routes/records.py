@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -23,8 +23,26 @@ from app.core import audit
 from app.core.rbac import current_user, require_admin, require_uploader
 from app.core.storage import get_storage, sha256_file
 from app.db import get_db
-from app.models import Batch, Case, Document, LogicalPage, PageVersion, User
-from app.models.core import IngestStatus
+from app.models import (
+    Batch,
+    Case,
+    Document,
+    Job,
+    LogicalPage,
+    PageReview,
+    PageVersion,
+    QualityResult,
+    User,
+)
+from app.models.core import IngestStatus, JobState, PageClass
+
+# The classes that put a page in front of a reviewer.
+#
+# Must stay identical to `_NEEDS_REVIEW_CLASSES` in services/query.py, which is what the dashboard's
+# "awaiting review" figure and the `review_state=pending` page filter both use. `failed` is
+# deliberately NOT in here: a page the engine could not measure is unmeasured, not un-reviewed, and
+# counting it as outstanding review work would inflate the queue with pages a reviewer cannot act on.
+_NEEDS_REVIEW = (PageClass.review, PageClass.rescan)
 from app.processing import ingest
 from app.schemas.api import BatchIn, BatchOut, CaseIn, CaseOut, CasePatch, UploadResult
 from app.services import completeness as completeness_service
@@ -87,6 +105,10 @@ def case_out(
     document_count: int = 0,
     page_count: int = 0,
     first_page_version_id: str | None = None,
+    documents_pending: int = 0,
+    pages_measured: int = 0,
+    jobs_active: int = 0,
+    ingest_failed: int = 0,
 ) -> CaseOut:
     """The one place a Case becomes a CaseOut.
 
@@ -117,7 +139,66 @@ def case_out(
         created_at=case.created_at,
         page_count=page_count,
         first_page_version_id=first_page_version_id,
+        documents_pending=documents_pending,
+        pages_measured=pages_measured,
+        jobs_active=jobs_active,
+        ingest_failed=ingest_failed,
     )
+
+
+def _case_detail(db: Session, case: Case) -> CaseOut:
+    """One case's counts. The list does this in aggregate; this is the single-row version."""
+    docs = list(db.execute(select(Document).where(Document.case_id == case.id)).scalars())
+    doc_ids = [d.id for d in docs]
+
+    pending = sum(1 for d in docs if d.ingest_status in (IngestStatus.pending, IngestStatus.running))
+    failed = sum(
+        1
+        for d in docs
+        if d.ingest_status
+        in (
+            IngestStatus.failed,
+            IngestStatus.rejected,
+            IngestStatus.corrupted,
+            IngestStatus.password_protected,
+        )
+    )
+
+    pages = 0
+    measured = 0
+    first_pv: str | None = None
+    jobs = 0
+    if doc_ids:
+        rows = db.execute(
+            select(PageVersion.id, LogicalPage.ordinal, Document.uploaded_at)
+            .join(LogicalPage, LogicalPage.id == PageVersion.logical_page_id)
+            .join(Document, Document.id == LogicalPage.document_id)
+            .where(Document.id.in_(doc_ids), PageVersion.is_active.is_(True))
+            .order_by(Document.uploaded_at.asc(), LogicalPage.ordinal.asc())
+        ).all()
+        pages = len(rows)
+        if rows:
+            first_pv = rows[0][0]
+        measured = (
+            db.execute(
+                select(func.count(QualityResult.id))
+                .join(PageVersion, PageVersion.id == QualityResult.page_version_id)
+                .join(LogicalPage, LogicalPage.id == PageVersion.logical_page_id)
+                .where(LogicalPage.document_id.in_(doc_ids), PageVersion.is_active.is_(True))
+            ).scalar()
+            or 0
+        )
+        jobs = (
+            db.execute(
+                select(func.count(Job.id)).where(
+                    Job.document_id.in_(doc_ids),
+                    Job.state.in_([JobState.queued, JobState.running]),
+                )
+            ).scalar()
+            or 0
+        )
+
+    return case_out(case, len(docs), pages, first_pv, pending, measured, jobs, failed)
 
 
 @router.get("/cases", response_model=list[CaseOut])
@@ -151,6 +232,61 @@ def list_cases(
         ).all()
     )
 
+    # Documents the ingest has not finished with, and the ones it refused outright. A record whose
+    # file is still being rasterised has no pages yet, and saying nothing about that is how a row
+    # reads as "empty" when it is really "not done".
+    pending_counts = dict(
+        db.execute(
+            select(Document.case_id, func.count(Document.id))
+            .where(
+                Document.case_id.in_(ids),
+                Document.ingest_status.in_([IngestStatus.pending, IngestStatus.running]),
+            )
+            .group_by(Document.case_id)
+        ).all()
+    )
+    failed_counts = dict(
+        db.execute(
+            select(Document.case_id, func.count(Document.id))
+            .where(
+                Document.case_id.in_(ids),
+                Document.ingest_status.in_(
+                    [
+                        IngestStatus.failed,
+                        IngestStatus.rejected,
+                        IngestStatus.corrupted,
+                        IngestStatus.password_protected,
+                    ]
+                ),
+            )
+            .group_by(Document.case_id)
+        ).all()
+    )
+
+    # Pages the quality engine has actually measured, and work still queued or running for this
+    # record's documents.
+    measured_counts = dict(
+        db.execute(
+            select(Document.case_id, func.count(QualityResult.id))
+            .join(LogicalPage, LogicalPage.document_id == Document.id)
+            .join(PageVersion, PageVersion.logical_page_id == LogicalPage.id)
+            .join(QualityResult, QualityResult.page_version_id == PageVersion.id)
+            .where(Document.case_id.in_(ids), PageVersion.is_active.is_(True))
+            .group_by(Document.case_id)
+        ).all()
+    )
+    job_counts = dict(
+        db.execute(
+            select(Document.case_id, func.count(Job.id))
+            .join(Job, Job.document_id == Document.id)
+            .where(
+                Document.case_id.in_(ids),
+                Job.state.in_([JobState.queued, JobState.running]),
+            )
+            .group_by(Document.case_id)
+        ).all()
+    )
+
     page_rows = db.execute(
         select(
             Document.case_id,
@@ -177,9 +313,22 @@ def list_cases(
             doc_counts.get(c.id, 0),
             page_counts.get(c.id, 0),
             first_page.get(c.id),
+            pending_counts.get(c.id, 0),
+            measured_counts.get(c.id, 0),
+            job_counts.get(c.id, 0),
+            failed_counts.get(c.id, 0),
         )
         for c in cases
     ]
+
+
+@router.get("/cases/{case_id}", response_model=CaseOut)
+def get_case(case_id: str, db: Session = Depends(get_db), _: User = Depends(current_user)):
+    """One patient record, with the same counts the list shows."""
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(404, "Case not found")
+    return _case_detail(db, case)
 
 
 @router.post("/cases", response_model=CaseOut, status_code=201)
@@ -424,17 +573,122 @@ async def upload(
     return results
 
 
+_EMPTY_ROLLUP: dict[str, object] = {
+    "pages_active": 0,
+    "awaiting_review": 0,
+    "page_class_counts": {},
+}
+
+
+def _document_has_open_page():
+    """A page that is in a class needing a look and that no reviewer has closed.
+
+    Deliberately the same definition as `services/query.py`'s `review_state == "pending"`, so the
+    file list and the page list cannot disagree about what is outstanding.
+    """
+    closing = ("accept", "request_rescan")
+    closed = (
+        select(PageReview.id)
+        .where(
+            PageReview.page_version_id == PageVersion.id,
+            PageReview.action.in_(closing),
+        )
+        .exists()
+    )
+    return (
+        select(PageVersion.id)
+        .join(LogicalPage, LogicalPage.id == PageVersion.logical_page_id)
+        .join(QualityResult, QualityResult.page_version_id == PageVersion.id)
+        .where(
+            LogicalPage.document_id == Document.id,
+            PageVersion.is_active.is_(True),
+            QualityResult.overall.in_(_NEEDS_REVIEW),
+            ~closed,
+        )
+        .exists()
+    )
+
+
+def _document_rollups(db: Session, doc_ids: list[str]) -> dict[str, dict]:
+    """Active page counts, class breakdown and outstanding review count, per document.
+
+    Three aggregate queries for the whole page of results rather than three per row.
+    """
+    if not doc_ids:
+        return {}
+
+    out: dict[str, dict] = {
+        d: {"pages_active": 0, "awaiting_review": 0, "page_class_counts": {}} for d in doc_ids
+    }
+
+    class_rows = db.execute(
+        select(LogicalPage.document_id, QualityResult.overall, func.count(PageVersion.id))
+        .join(PageVersion, PageVersion.logical_page_id == LogicalPage.id)
+        .join(QualityResult, QualityResult.page_version_id == PageVersion.id)
+        .where(LogicalPage.document_id.in_(doc_ids), PageVersion.is_active.is_(True))
+        .group_by(LogicalPage.document_id, QualityResult.overall)
+    ).all()
+    for doc_id, overall, count in class_rows:
+        key = overall.value if hasattr(overall, "value") else str(overall)
+        out[doc_id]["page_class_counts"][key] = count
+
+    active_rows = db.execute(
+        select(LogicalPage.document_id, func.count(PageVersion.id))
+        .join(PageVersion, PageVersion.logical_page_id == LogicalPage.id)
+        .where(LogicalPage.document_id.in_(doc_ids), PageVersion.is_active.is_(True))
+        .group_by(LogicalPage.document_id)
+    ).all()
+    for doc_id, count in active_rows:
+        out[doc_id]["pages_active"] = count
+
+    closed = (
+        select(PageReview.id)
+        .where(
+            PageReview.page_version_id == PageVersion.id,
+            PageReview.action.in_(("accept", "request_rescan")),
+        )
+        .exists()
+    )
+    open_rows = db.execute(
+        select(LogicalPage.document_id, func.count(PageVersion.id))
+        .join(PageVersion, PageVersion.logical_page_id == LogicalPage.id)
+        .join(QualityResult, QualityResult.page_version_id == PageVersion.id)
+        .where(
+            LogicalPage.document_id.in_(doc_ids),
+            PageVersion.is_active.is_(True),
+            QualityResult.overall.in_(_NEEDS_REVIEW),
+            ~closed,
+        )
+        .group_by(LogicalPage.document_id)
+    ).all()
+    for doc_id, count in open_rows:
+        out[doc_id]["awaiting_review"] = count
+
+    return out
+
+
 @router.get("/documents")
 def list_documents(
     batch_id: str | None = None,
     case_id: str | None = None,
     status: str | None = None,
     q: str | None = None,
+    needs_review: bool = False,
     limit: int = 100,
     offset: int = 0,
     db: Session = Depends(get_db),
     _: User = Depends(current_user),
 ):
+    """The uploaded files, with a roll-up of what is inside each one.
+
+    The roll-up exists so a reviewer can work a file at a time. A queue that interleaves page 7 of
+    one patient's discharge summary with page 2 of another's case sheet asks a person to change
+    context on every row; grouping by the document they were scanned from is how the paper was
+    handled in the first place.
+
+    `needs_review=true` narrows to files that still have a page nobody has closed — the same
+    definition the dashboard's "awaiting review" figure uses, so the two never disagree.
+    """
     stmt = select(Document).order_by(Document.uploaded_at.desc())
     if batch_id:
         stmt = stmt.where(Document.batch_id == batch_id)
@@ -444,8 +698,12 @@ def list_documents(
         stmt = stmt.where(Document.ingest_status == IngestStatus(status))
     if q:
         stmt = stmt.where(Document.original_filename.ilike(f"%{q}%"))
+    if needs_review:
+        stmt = stmt.where(_document_has_open_page())
+
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
     rows = db.execute(stmt.limit(limit).offset(offset)).scalars().all()
+    rollups = _document_rollups(db, [d.id for d in rows])
     return {
         "total": total,
         "limit": limit,
@@ -466,6 +724,7 @@ def list_documents(
                 "uploaded_by": d.uploaded_by,
                 "ingest_status": d.ingest_status.value,
                 "ingest_error": d.ingest_error,
+                **rollups.get(d.id, _EMPTY_ROLLUP),
             }
             for d in rows
         ],
@@ -508,6 +767,47 @@ def get_document(document_id: str, db: Session = Depends(get_db), _: User = Depe
         "ingest_error": doc.ingest_error,
         "pages": pages,
     }
+
+
+@router.get("/documents/{document_id}/file")
+def document_file(document_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """Stream the original upload — the PDF exactly as it arrived.
+
+    Audited, unlike the page-image routes: this hands over the whole document rather than one
+    rendered page, and who read a patient's file is worth being able to answer.
+
+    Served inline so the browser's own PDF viewer can open it, with `no-store` so a shared
+    workstation does not leave a patient's record in the disk cache.
+    """
+    doc = db.get(Document, document_id)
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    if not doc.storage_key_original:
+        raise HTTPException(404, "The original file for this document is no longer stored")
+
+    storage = get_storage()
+    if not storage.exists(doc.storage_key_original):
+        raise HTTPException(404, "The original file for this document is no longer stored")
+
+    audit.record(
+        db,
+        actor_id=user.id,
+        action="document.file.view",
+        entity_type="document",
+        entity_id=doc.id,
+    )
+    db.commit()
+
+    data = storage.get_bytes(doc.storage_key_original)
+    filename = doc.original_filename.replace('"', "") or "document"
+    return Response(
+        content=data,
+        media_type=doc.mime or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @router.delete("/documents/{document_id}", status_code=204)
