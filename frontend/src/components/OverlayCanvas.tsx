@@ -53,15 +53,34 @@ export interface OverlayShape {
  * Each family gets a distinct colour AND a distinct dash pattern AND a labelled caption, so the
  * three kinds remain distinguishable in greyscale and to colour-blind readers.
  */
+/**
+ * Overlay strokes are the application's own status inks, read from the live custom properties so
+ * the overlay follows the operating system's colour scheme like every other surface. Each kind is
+ * also given its own dash pattern: the three categories stay distinguishable in greyscale and to a
+ * reader who cannot separate the hues.
+ */
+const ink = (name: string, alpha?: number) =>
+  alpha === undefined ? `rgb(var(${name}))` : `rgb(var(${name}) / ${alpha})`;
+
+const INK = {
+  plot: ink('--c-plot'),
+  plotFill: ink('--c-plot', 0.1),
+  chart: ink('--c-chart'),
+  chartFill: ink('--c-chart', 0.1),
+  note: ink('--c-note'),
+  noteFill: ink('--c-note', 0.12),
+  paper: ink('--c-paper'),
+};
+
 const KIND_STYLE: Record<OverlayKind, { stroke: string; fill: string; dash: string; caption: string }> = {
-  quality: { stroke: '#dc2626', fill: 'rgba(220,38,38,0.10)', dash: '', caption: 'Scan defect' },
+  quality: { stroke: INK.plot, fill: INK.plotFill, dash: '', caption: 'Scan defect' },
   handwriting: {
-    stroke: '#7c3aed',
-    fill: 'rgba(124,58,237,0.10)',
+    stroke: INK.chart,
+    fill: INK.chartFill,
     dash: '10 6',
     caption: 'Handwriting',
   },
-  diagnosis: { stroke: '#0891b2', fill: 'rgba(8,145,178,0.12)', dash: '2 6', caption: 'Diagnosis' },
+  diagnosis: { stroke: INK.note, fill: INK.noteFill, dash: '2 6', caption: 'Diagnosis' },
 };
 
 export function overlayKindCaption(kind: OverlayKind): string {
@@ -190,7 +209,7 @@ export function OverlayCanvas({
                   <text
                     x={px(5)}
                     y={px(-6)}
-                    fill="#ffffff"
+                    fill={INK.paper}
                     fontSize={px(11)}
                     fontFamily="system-ui, sans-serif"
                     style={{ userSelect: 'none' }}
@@ -255,12 +274,12 @@ export function RotatableStage({
 export function OverlayLegend({ kinds }: { kinds: OverlayKind[] }) {
   if (kinds.length === 0) return null;
   return (
-    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-700 dark:text-slate-300">
+    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-2">
       {kinds.map((k) => (
         <li key={k} className="flex items-center gap-1.5">
           <span
             aria-hidden="true"
-            className="inline-block h-3 w-5 rounded-sm border-2"
+            className="inline-block h-3 w-5 rounded border-2"
             style={{ borderColor: KIND_STYLE[k].stroke, borderStyle: k === 'quality' ? 'solid' : 'dashed' }}
           />
           {KIND_STYLE[k].caption}

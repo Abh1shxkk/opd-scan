@@ -35,16 +35,29 @@ from app.services.query import PageFilters, active_page_query
 router = APIRouter(prefix="/diagnoses", tags=["diagnoses"])
 
 
+def _reviewer_name(user: User | None) -> str | None:
+    """The name to show against a review. Falls back to the email, never to the UUID."""
+    if user is None:
+        return None
+    return (user.full_name or "").strip() or user.email
+
+
 def _serialise(d: DiagnosisExtraction, db: Session, include_source: bool = True) -> DiagnosisOut:
     pv = d.page_version
     page = pv.logical_page
     doc = page.document
-    emails = {
-        u.id: u.email
+    reviewers = {
+        u.id: u
         for u in db.execute(
             select(User).where(User.id.in_([r.reviewer_id for r in d.reviews]))
         ).scalars()
     } if d.reviews else {}
+
+    # The extractor's safety context rides inside region_json; separate it from the region box so
+    # each half is presented as what it is.
+    region_json = d.region_json or {}
+    safety_keys = ("note", "cleaning_applied", "ambiguous_abbreviations")
+    region = {k: v for k, v in region_json.items() if k not in safety_keys} or None
 
     return DiagnosisOut(
         id=d.id,
@@ -55,7 +68,10 @@ def _serialise(d: DiagnosisExtraction, db: Session, include_source: bool = True)
         qualifier=d.qualifier.value,
         icd_code_verbatim=d.icd_code_verbatim,
         is_handwritten=d.is_handwritten,
-        region=d.region_json,
+        region=region,
+        note=region_json.get("note") or None,
+        cleaning_applied=list(region_json.get("cleaning_applied") or []),
+        ambiguous_abbreviations=list(region_json.get("ambiguous_abbreviations") or []),
         confidence=d.confidence,
         model_version=d.model_version,
         provider_used=d.provider_used,
@@ -66,7 +82,8 @@ def _serialise(d: DiagnosisExtraction, db: Session, include_source: bool = True)
             DiagnosisReviewOut(
                 id=r.id,
                 reviewer_id=r.reviewer_id,
-                reviewer_email=emails.get(r.reviewer_id),
+                reviewer_email=reviewers[r.reviewer_id].email if r.reviewer_id in reviewers else None,
+                reviewer_name=_reviewer_name(reviewers.get(r.reviewer_id)),
                 action=r.action,
                 corrected_text=r.corrected_text,
                 corrected_qualifier=r.corrected_qualifier.value if r.corrected_qualifier else None,

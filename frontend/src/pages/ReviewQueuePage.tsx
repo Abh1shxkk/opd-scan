@@ -13,18 +13,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, imagePath } from '../lib/api';
 import { defectLabel } from '../lib/defects';
-import {
-  diagnosisView,
-  handwritingView,
-  pageClassView,
-  reviewStateView,
-} from '../lib/status';
+import { diagnosisView, handwritingView, pageClassView, reviewStateView } from '../lib/status';
 import type { PageSummary } from '../lib/types';
 import { useAuthedObjectUrl } from '../hooks/useAuthedObjectUrl';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 import { FilterBar } from '../components/FilterBar';
 import { Modal } from '../components/Modal';
-import { Panel } from '../components/StatTile';
+import { Panel } from '../components/Sheet';
 import { StatusPill } from '../components/StatusPill';
 import { useToast } from '../components/Toast';
 import { Button, EmptyState, ErrorState, Spinner, TextArea } from '../components/ui';
@@ -100,7 +95,11 @@ export default function ReviewQueuePage() {
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       // Let the browser handle typing inside the filter inputs.
-      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+      if (
+        (e.target as HTMLElement).tagName === 'INPUT' ||
+        (e.target as HTMLElement).tagName === 'TEXTAREA'
+      )
+        return;
 
       switch (e.key) {
         case 'ArrowDown':
@@ -154,15 +153,16 @@ export default function ReviewQueuePage() {
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      <header className="rule-double flex flex-wrap items-end justify-between gap-3 pb-2">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Review queue</h1>
-          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+          <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-ink">Review queue</h1>
+          <p className="mt-1 text-[13px] text-ink-2">
             Pages waiting for a decision. Use the keyboard:{' '}
-            <kbd className="rounded border px-1">J</kbd>/<kbd className="rounded border px-1">K</kbd> to move,{' '}
-            <kbd className="rounded border px-1">A</kbd> to accept,{' '}
-            <kbd className="rounded border px-1">R</kbd> to request a rescan,{' '}
-            <kbd className="rounded border px-1">Enter</kbd> to open.
+            <kbd className="border border-rule-2 bg-paper-2 px-1 font-label text-[11px] font-semibold tracking-label text-ink">J</kbd>/
+            <kbd className="border border-rule-2 bg-paper-2 px-1 font-label text-[11px] font-semibold tracking-label text-ink">K</kbd> to move,{' '}
+            <kbd className="border border-rule-2 bg-paper-2 px-1 font-label text-[11px] font-semibold tracking-label text-ink">A</kbd> to accept,{' '}
+            <kbd className="border border-rule-2 bg-paper-2 px-1 font-label text-[11px] font-semibold tracking-label text-ink">R</kbd> to request a rescan,{' '}
+            <kbd className="border border-rule-2 bg-paper-2 px-1 font-label text-[11px] font-semibold tracking-label text-ink">Enter</kbd> to open.
           </p>
         </div>
         <Button variant="secondary" onClick={() => setHelpOpen(true)}>
@@ -174,7 +174,11 @@ export default function ReviewQueuePage() {
         value={filters}
         onChange={setFilters}
         onReset={reset}
-        resultSummary={q.isLoading ? 'Loading…' : `${rows.length} page${rows.length === 1 ? '' : 's'} in the queue.`}
+        resultSummary={
+          q.isLoading
+            ? 'Loading…'
+            : `${rows.length} page${rows.length === 1 ? '' : 's'} in the queue.`
+        }
       />
 
       {/* One live region for the whole screen: selection changes and action results both land here. */}
@@ -200,7 +204,7 @@ export default function ReviewQueuePage() {
             aria-activedescendant={current ? `queue-item-${current.page_version_id}` : undefined}
             tabIndex={0}
             onKeyDown={onKeyDown}
-            className="max-h-[70vh] space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:border-slate-800 dark:bg-slate-900"
+            className="max-h-[70vh] space-y-1 overflow-y-auto sheet p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             {rows.map((p, i) => (
               <li
@@ -210,17 +214,15 @@ export default function ReviewQueuePage() {
                 aria-selected={i === index}
                 onClick={() => setIndex(i)}
                 className={`cursor-pointer rounded p-2 ${
-                  i === index
-                    ? 'bg-sky-100 ring-2 ring-sky-600 dark:bg-sky-950 dark:ring-sky-400'
-                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                  i === index ? 'bg-chart/[0.07] ring-2 ring-chart ' : 'hover:bg-chart/[0.07] '
                 }`}
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <span className="text-[13px] font-medium text-ink">
                     Page {p.ordinal}
                     {p.printed_page_label ? ` ${p.printed_page_label}` : ''}
                   </span>
-                  <span className="truncate text-xs text-slate-600 dark:text-slate-400" title={p.document_filename}>
+                  <span className="truncate text-[11px] text-ink-2" title={p.document_filename}>
                     {p.document_filename}
                   </span>
                 </div>
@@ -248,13 +250,19 @@ export default function ReviewQueuePage() {
         page={rescanFor}
         onClose={() => setRescanFor(null)}
         onSubmit={(comment) => {
-          if (rescanFor) review.mutate({ id: rescanFor.page_version_id, action: 'request_rescan', comment });
+          if (rescanFor)
+            review.mutate({ id: rescanFor.page_version_id, action: 'request_rescan', comment });
           setRescanFor(null);
         }}
       />
 
-      <Modal open={helpOpen} onClose={() => setHelpOpen(false)} title="Keyboard shortcuts" size="sm">
-        <dl className="space-y-1 text-sm">
+      <Modal
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        title="Keyboard shortcuts"
+        size="sm"
+      >
+        <dl className="space-y-1 text-[13px]">
           {[
             ['J or ↓', 'Next page in the queue'],
             ['K or ↑', 'Previous page'],
@@ -266,15 +274,13 @@ export default function ReviewQueuePage() {
           ].map(([key, meaning]) => (
             <div key={key} className="grid grid-cols-[7rem_1fr] gap-2">
               <dt>
-                <kbd className="rounded border border-slate-400 px-1.5 py-0.5 text-xs dark:border-slate-600">
-                  {key}
-                </kbd>
+                <kbd className="rounded border border-rule-2 px-1.5 py-0.5 text-[11px]">{key}</kbd>
               </dt>
-              <dd className="text-slate-800 dark:text-slate-200">{meaning}</dd>
+              <dd className="text-ink">{meaning}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-xs text-slate-600 dark:text-slate-400">
+        <p className="mt-3 text-[11px] text-ink-2">
           Shortcuts apply while the queue list has focus. Click the list, or Tab to it, to use them.
         </p>
       </Modal>
@@ -302,7 +308,7 @@ function QueueDetail({
       actions={
         <Link
           to={`/pages/${page.page_version_id}`}
-          className="text-sm font-medium text-sky-800 underline dark:text-sky-300"
+          className="text-[13px] font-medium text-chart underline"
         >
           Open full viewer
         </Link>
@@ -319,8 +325,8 @@ function QueueDetail({
 
       {page.defect_codes?.length ? (
         <div className="mt-3">
-          <h3 className="text-xs font-medium text-slate-800 dark:text-slate-200">Scan defects</h3>
-          <ul className="mt-1 list-inside list-disc text-sm text-slate-800 dark:text-slate-200">
+          <h3 className="text-[11px] font-medium text-ink">Scan defects</h3>
+          <ul className="mt-1 list-inside list-disc text-[13px] text-ink">
             {page.defect_codes.map((c) => (
               <li key={c}>{defectLabel(c)}</li>
             ))}
@@ -328,24 +334,28 @@ function QueueDetail({
         </div>
       ) : null}
 
-      <div className="mt-3 flex max-h-[45vh] justify-center overflow-auto rounded border border-slate-200 bg-slate-100 p-2 dark:border-slate-800 dark:bg-slate-950">
+      <div className="mt-3 flex max-h-[45vh] justify-center overflow-auto rounded border border-rule bg-paper-2 p-2">
         {loading ? <Spinner label="Loading preview…" /> : null}
         {error ? (
-          <p role="alert" className="p-4 text-sm text-red-900 dark:text-red-200">
+          <p role="alert" className="p-4 text-[13px] text-ink">
             {error}
           </p>
         ) : null}
         {url ? (
-          <img src={url} alt={`Preview of page ${page.ordinal}`} className="max-w-full object-contain" />
+          <img
+            src={url}
+            alt={`Preview of page ${page.ordinal}`}
+            className="max-w-full object-contain"
+          />
         ) : null}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="primary" onClick={onAccept} disabled={busy}>
-          Accept <span className="ml-1 text-xs opacity-80">(A)</span>
+          Accept <span className="ml-1 text-[11px] opacity-80">(A)</span>
         </Button>
         <Button variant="danger" onClick={onRescan} disabled={busy}>
-          Request rescan <span className="ml-1 text-xs opacity-80">(R)</span>
+          Request rescan <span className="ml-1 text-[11px] opacity-80">(R)</span>
         </Button>
       </div>
     </Panel>
@@ -380,7 +390,11 @@ function RescanDialog({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="danger" disabled={text.trim().length === 0} onClick={() => onSubmit(text.trim())}>
+          <Button
+            variant="danger"
+            disabled={text.trim().length === 0}
+            onClick={() => onSubmit(text.trim())}
+          >
             Request rescan
           </Button>
         </>

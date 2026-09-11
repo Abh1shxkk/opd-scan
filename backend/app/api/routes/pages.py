@@ -305,6 +305,15 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
     audit.record(db, actor_id=user.id, action="page.view", entity_type="page_version", entity_id=pv.id)
     db.commit()
 
+    # A review trail identified only by UUID cannot be read by the people whose decisions it
+    # records, so each review carries the reviewer's name, falling back to their email.
+    _review_names: dict[str, str] = {}
+    if pv.reviews:
+        for _u in db.execute(
+            select(User).where(User.id.in_([r.reviewer_id for r in pv.reviews]))
+        ).scalars():
+            _review_names[_u.id] = (_u.full_name or "").strip() or _u.email
+
     return PageDetail(
         **base,
         findings=findings,
@@ -317,6 +326,7 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
         provider_error=pv.quality.provider_error if pv.quality else None,
         reviews=[
             {"id": r.id, "action": r.action, "comment": r.comment, "reviewer_id": r.reviewer_id,
+             "reviewer_name": _review_names.get(r.reviewer_id),
              "created_at": r.created_at.isoformat()}
             for r in sorted(pv.reviews, key=lambda r: r.created_at)
         ],

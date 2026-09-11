@@ -580,16 +580,30 @@ export interface ThresholdsResponse {
   updated_by?: string | null;
 }
 
+/**
+ * Retention periods, in days. `0` means "no period configured", never "delete immediately".
+ *
+ * These are the keys the API actually sends (`settings_store.get_retention`). Upload limits are
+ * NOT in here — they arrive in a sibling `limits` object, because they are deployment limits
+ * rather than a retention policy.
+ */
 export interface RetentionInfo {
-  retention_days_originals: number;
-  retention_days_derivatives: number;
+  originals_days: number;
+  derivatives_days: number;
+  audit_days: number;
+}
+
+export interface DeploymentLimits {
   max_upload_mb?: number;
   max_pages_per_document?: number;
+  allowed_extensions?: string[];
+  render_dpi?: number;
 }
 
 export interface CapabilitiesResponse {
   capabilities: CapabilityMap;
   retention?: RetentionInfo;
+  limits?: DeploymentLimits;
 }
 
 export interface Checklist {

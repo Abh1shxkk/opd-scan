@@ -33,11 +33,12 @@ import {
 import type { DiagnosisDetail, Qualifier, Region } from '../lib/types';
 import { useAuthedObjectUrl } from '../hooks/useAuthedObjectUrl';
 import { OverlayCanvas } from '../components/OverlayCanvas';
-import { Panel } from '../components/StatTile';
+import { Panel } from '../components/Sheet';
 import { StatusPill } from '../components/StatusPill';
 import { ReviewedBadge, UnreviewedBadge } from '../components/UnreviewedBadge';
 import { useToast } from '../components/Toast';
 import { Button, DetailRow, ErrorState, Select, Spinner, TextArea } from '../components/ui';
+import { TriangleAlert } from 'lucide-react';
 
 export default function DiagnosisReviewPage() {
   const { diagnosisId = '' } = useParams();
@@ -110,13 +111,13 @@ function ReviewBody({
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="rule-double flex flex-wrap items-start justify-between gap-3 pb-2">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Diagnosis review</h1>
-          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+          <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-ink">Diagnosis review</h1>
+          <p className="mt-1 text-[13px] text-ink-2">
             <Link
               to={`/pages/${d.page.page_version_id}`}
-              className="font-medium text-sky-800 underline dark:text-sky-300"
+              className="font-medium text-chart underline"
             >
               Page {d.page.ordinal}
               {d.page.printed_page_label ? ` ${d.page.printed_page_label}` : ''}
@@ -210,12 +211,12 @@ function SourceImagePane({
       }
       actions={
         region ? (
-          <label className="flex items-center gap-2 text-sm text-slate-900 dark:text-slate-100">
+          <label className="flex items-center gap-2 text-[13px] text-ink">
             <input
               type="checkbox"
               checked={wholePage}
               onChange={(e) => setWholePage(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-500 text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+              className="h-4 w-4 rounded border-rule-2 text-chart focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             />
             Show whole page
           </label>
@@ -223,13 +224,13 @@ function SourceImagePane({
       }
     >
       <div
-        className="relative mx-auto overflow-hidden rounded border border-slate-200 bg-slate-200 dark:border-slate-800 dark:bg-slate-950"
+        className="relative mx-auto overflow-hidden rounded border border-rule bg-paper-3"
         style={{ width: boxW, maxWidth: '100%', height: boxH }}
       >
         {loading ? <Spinner label="Loading the page image…" /> : null}
         {error ? (
-          <p role="alert" className="p-4 text-sm text-red-900 dark:text-red-200">
-            <span aria-hidden="true">⚠ </span>
+          <p role="alert" className="p-4 text-[13px] text-ink">
+            <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
             {error}
           </p>
         ) : null}
@@ -273,12 +274,12 @@ function SourceImagePane({
         ) : null}
       </div>
       {!pageWidth || !pageHeight ? (
-        <p className="mt-2 text-sm text-amber-900 dark:text-amber-200">
-          <span aria-hidden="true">⚠ </span>
+        <p className="mt-2 text-[13px] text-ink">
+          <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
           This page version has no recorded pixel dimensions, so the region cannot be located on the image.
         </p>
       ) : null}
-      <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+      <p className="mt-2 text-[11px] text-ink-2">
         Read the image, not the transcription, when the two disagree. The image is the record.
       </p>
     </Panel>
@@ -293,8 +294,8 @@ function ExtractionPane({ d, isReviewed }: { d: DiagnosisDetail; isReviewed: boo
   return (
     <Panel title="Extracted diagnosis">
       {/* Qualifier gets its own block at the top. It changes what everything below means. */}
-      <div className="mb-3 rounded border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-700 dark:text-slate-300">
+      <div className="mb-3 border-y border-rule bg-paper-2 px-3 py-2.5">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-ink-2">
           Clinical qualifier
         </p>
         <div className="mt-1">
@@ -306,7 +307,7 @@ function ExtractionPane({ d, isReviewed }: { d: DiagnosisDetail; isReviewed: boo
         <StatusPill view={diagnosisView(d.status)} size="sm" />
         {!isReviewed ? <UnreviewedBadge size="sm" /> : null}
         {d.is_handwritten ? (
-          <span className="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-950 dark:bg-violet-950 dark:text-violet-50">
+          <span className="rounded bg-paper-2 px-1.5 py-0.5 text-[11px] font-medium text-ink">
             Handwritten source
           </span>
         ) : null}
@@ -315,33 +316,33 @@ function ExtractionPane({ d, isReviewed }: { d: DiagnosisDetail; isReviewed: boo
       {/* --- raw and cleaned, side by side and labelled ------------------- */}
       <section className="space-y-3">
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-ink-2">
             Raw transcription
           </h3>
-          <p className="text-xs text-slate-600 dark:text-slate-400">
+          <p className="text-[11px] text-ink-2">
             Exactly what the model read. Immutable — it is never edited, including by a correction.
           </p>
-          <p className="mt-1 whitespace-pre-wrap rounded border border-slate-200 bg-white p-2 font-mono text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
-            {d.raw_text || <span className="italic text-slate-600 dark:text-slate-400">Nothing was transcribed.</span>}
+          <p className="mt-1 whitespace-pre-wrap rounded border border-rule bg-paper p-2 font-mono text-[13px] text-ink">
+            {d.raw_text || <span className="italic text-ink-2">Nothing was transcribed.</span>}
           </p>
         </div>
 
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-ink-2">
             Cleaned text (presentation only)
           </h3>
-          <p className="text-xs text-slate-600 dark:text-slate-400">
+          <p className="text-[11px] text-ink-2">
             Whitespace and label punctuation only. No expansion, no spelling correction, no reordering.
           </p>
-          <p className="mt-1 whitespace-pre-wrap rounded border border-slate-200 bg-white p-2 font-mono text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
+          <p className="mt-1 whitespace-pre-wrap rounded border border-rule bg-paper p-2 font-mono text-[13px] text-ink">
             {d.cleaned_text || (
-              <span className="italic text-slate-600 dark:text-slate-400">
+              <span className="italic text-ink-2">
                 No cleaned text — the transcription was not readable enough to present.
               </span>
             )}
           </p>
           {d.cleaning_applied && d.cleaning_applied.length > 0 ? (
-            <ul className="mt-1 list-inside list-disc text-xs text-slate-600 dark:text-slate-400">
+            <ul className="mt-1 list-inside list-disc text-[11px] text-ink-2">
               {d.cleaning_applied.map((c) => (
                 <li key={c}>{c}</li>
               ))}
@@ -352,12 +353,12 @@ function ExtractionPane({ d, isReviewed }: { d: DiagnosisDetail; isReviewed: boo
 
       {/* --- abbreviations deliberately not expanded ---------------------- */}
       {d.ambiguous_abbreviations && d.ambiguous_abbreviations.length > 0 ? (
-        <div className="mt-3 rounded border border-amber-400 bg-amber-50 p-3 dark:border-amber-600 dark:bg-amber-950">
-          <h3 className="text-sm font-semibold text-amber-950 dark:text-amber-50">
-            <span aria-hidden="true">⚠ </span>
+        <div className="mt-3 rounded border border-note/50 bg-note/[0.07] p-3">
+          <h3 className="text-[13px] font-semibold text-ink">
+            <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
             Abbreviations left exactly as written
           </h3>
-          <p className="mt-1 text-sm text-amber-950 dark:text-amber-50">
+          <p className="mt-1 text-[13px] text-ink">
             These have more than one common reading in this setting and were deliberately not expanded.
             Decide what they mean from the record, not from the transcription.
           </p>
@@ -365,7 +366,7 @@ function ExtractionPane({ d, isReviewed }: { d: DiagnosisDetail; isReviewed: boo
             {d.ambiguous_abbreviations.map((a) => (
               <li
                 key={a}
-                className="rounded-lg border border-amber-600 bg-amber-100 px-2 py-0.5 font-mono text-sm font-semibold text-amber-950 dark:border-amber-400 dark:bg-amber-900 dark:text-amber-50"
+                className="rounded border border-note/50 bg-note/[0.07] px-2 py-0.5 font-mono text-[13px] font-semibold text-ink"
               >
                 {a}
               </li>
@@ -375,26 +376,26 @@ function ExtractionPane({ d, isReviewed }: { d: DiagnosisDetail; isReviewed: boo
       ) : null}
 
       {d.note ? (
-        <p className="mt-3 rounded bg-slate-100 p-2 text-sm text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+        <p className="mt-3 rounded bg-paper-2 p-2 text-[13px] text-ink">
           {d.note}
         </p>
       ) : null}
 
-      <dl className="mt-3 border-t border-slate-200 pt-2 dark:border-slate-800">
+      <dl className="mt-3 border-t border-rule pt-2">
         <DetailRow term="Label on the page">“{d.anchor_label || 'unlabelled'}”</DetailRow>
         <DetailRow term="ICD code">
           {/* Only ever present when a code is literally written on the page — never derived. */}
           {d.icd_code_verbatim ? (
             <span className="font-mono">{d.icd_code_verbatim}</span>
           ) : (
-            <span className="text-slate-600 dark:text-slate-400">
+            <span className="text-ink-2">
               None written on the page. No code has been assigned.
             </span>
           )}
         </DetailRow>
         <DetailRow term="Confidence">
           {/* Nothing is shown when the API supplied nothing. */}
-          {conf ?? <span className="text-slate-600 dark:text-slate-400">Not reported</span>}
+          {conf ?? <span className="text-ink-2">Not reported</span>}
         </DetailRow>
         <DetailRow term="Extracted">{formatDateTime(d.extracted_at)}</DetailRow>
         <DetailRow term="Model">{d.model_version || '—'}</DetailRow>
@@ -446,7 +447,7 @@ function ActionsPane({
       </div>
 
       {mode === 'correct' ? (
-        <div className="mt-3 space-y-3 rounded border border-slate-200 p-3 dark:border-slate-800">
+        <div className="mt-3 space-y-3 border-t border-rule pt-3">
           <TextArea
             label="Corrected text"
             rows={3}
@@ -492,8 +493,8 @@ function ActionsPane({
       ) : null}
 
       {mode === 'reject' ? (
-        <div className="mt-3 space-y-3 rounded border border-red-400 p-3 dark:border-red-700">
-          <p className="text-sm text-slate-800 dark:text-slate-200">
+        <div className="mt-3 space-y-3 rounded border border-plot/50 p-3">
+          <p className="text-[13px] text-ink">
             Rejecting marks this extraction as not usable. It is not deleted — the AI output and your
             reason both stay in the history.
           </p>
@@ -531,37 +532,37 @@ function HistoryPane({ d }: { d: DiagnosisDetail }) {
       description="Append-only. Each entry sits alongside the original AI output rather than replacing it."
     >
       {reviews.length === 0 ? (
-        <p className="text-sm text-slate-700 dark:text-slate-300">
+        <p className="text-[13px] text-ink-2">
           No one has reviewed this extraction yet.
         </p>
       ) : (
         <ol className="space-y-3">
           {reviews.map((r) => (
-            <li key={r.id} className="border-l-2 border-slate-200 pl-3 dark:border-slate-800">
+            <li key={r.id} className="border-l-2 border-rule pl-3">
               <div className="flex flex-wrap items-center gap-2">
                 <ReviewedBadge action={r.action} />
-                <span className="text-xs text-slate-600 dark:text-slate-400">
+                <span className="text-[11px] text-ink-2">
                   {r.reviewer_name || r.reviewer_id} · {formatDateTime(r.created_at)}
                 </span>
               </div>
               {r.corrected_text ? (
                 <div className="mt-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-2">
                     Corrected text
                   </p>
-                  <p className="whitespace-pre-wrap font-mono text-sm text-slate-900 dark:text-slate-100">
+                  <p className="whitespace-pre-wrap font-mono text-[13px] text-ink">
                     {r.corrected_text}
                   </p>
                 </div>
               ) : null}
               {r.corrected_qualifier ? (
-                <p className="mt-1 text-sm">
-                  <span className="text-slate-600 dark:text-slate-400">Qualifier corrected to: </span>
+                <p className="mt-1 text-[13px]">
+                  <span className="text-ink-2">Qualifier corrected to: </span>
                   <StatusPill view={qualifierView(r.corrected_qualifier)} size="sm" />
                 </p>
               ) : null}
               {r.comment ? (
-                <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{r.comment}</p>
+                <p className="mt-1 text-[13px] text-ink">{r.comment}</p>
               ) : null}
             </li>
           ))}
@@ -569,7 +570,7 @@ function HistoryPane({ d }: { d: DiagnosisDetail }) {
       )}
 
       {reviews.length > 0 ? (
-        <p className="mt-3 rounded bg-slate-100 p-2 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+        <p className="mt-3 rounded bg-paper-2 p-2 text-[11px] text-ink-2">
           The AI’s original transcription remains visible above, unchanged, whatever corrections were made.
         </p>
       ) : null}

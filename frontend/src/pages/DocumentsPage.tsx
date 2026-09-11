@@ -63,16 +63,26 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      <header className="rule-double flex flex-wrap items-end justify-between gap-3 pb-2">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Documents</h1>
-          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-            The filters below are carried in the address bar. Copy the link to share this exact view, or
-            open <Link to={`/reports${toQueryString(filters)}`} className="font-medium text-sky-800 underline dark:text-sky-300">Reports</Link>{' '}
+          <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-ink">Documents</h1>
+          <p className="mt-1 text-[13px] text-ink-2">
+            The filters below are carried in the address bar. Copy the link to share this exact
+            view, or open{' '}
+            <Link
+              to={`/reports${toQueryString(filters)}`}
+              className="font-medium text-chart underline"
+            >
+              Reports
+            </Link>{' '}
             to export precisely these rows.
           </p>
         </div>
-        <div role="tablist" aria-label="List view" className="flex gap-1 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div
+          role="tablist"
+          aria-label="List view"
+          className="flex gap-1 border border-rule-2 bg-paper p-0.5"
+        >
           {(['pages', 'documents'] as Tab[]).map((t) => (
             <button
               key={t}
@@ -80,10 +90,8 @@ export default function DocumentsPage() {
               type="button"
               aria-selected={tab === t}
               onClick={() => setTab(t)}
-              className={`rounded px-3 py-1.5 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${
-                tab === t
-                  ? 'bg-sky-700 text-white dark:bg-sky-600'
-                  : 'text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
+              className={`rounded px-3 py-1.5 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                tab === t ? 'bg-chart text-paper ' : 'text-ink hover:bg-chart/[0.07] '
               }`}
             >
               {t === 'pages' ? 'Pages' : 'Documents'}
@@ -111,14 +119,16 @@ export default function DocumentsPage() {
       {active.isError ? <ErrorState error={active.error} retry={() => active.refetch()} /> : null}
 
       {tab === 'pages' && pagesQuery.data ? <PagesTable rows={pagesQuery.data.items} /> : null}
-      {tab === 'documents' && docsQuery.data ? <DocumentsTable rows={docsQuery.data.items} /> : null}
+      {tab === 'documents' && docsQuery.data ? (
+        <DocumentsTable rows={docsQuery.data.items} />
+      ) : null}
 
       {total > pageSize ? (
         <nav aria-label="Pagination" className="flex items-center justify-between gap-3">
           <Button variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
             ← Previous
           </Button>
-          <p className="text-sm text-slate-700 dark:text-slate-300" aria-live="polite">
+          <p className="text-[13px] text-ink-2" aria-live="polite">
             Page {page} of {lastPage}
           </p>
           <Button variant="secondary" disabled={page >= lastPage} onClick={() => setPage(page + 1)}>
@@ -131,7 +141,9 @@ export default function DocumentsPage() {
 }
 
 /** One accordion group per source document, in the order its pages first appear. */
-function groupByDocument(rows: PageSummary[]): Array<{ document_id: string; filename: string; pages: PageSummary[] }> {
+function groupByDocument(
+  rows: PageSummary[],
+): Array<{ document_id: string; filename: string; pages: PageSummary[] }> {
   const order: string[] = [];
   const groups = new Map<string, { document_id: string; filename: string; pages: PageSummary[] }>();
   for (const p of rows) {
@@ -165,14 +177,14 @@ function PagesTable({ rows }: { rows: PageSummary[] }) {
           <details
             key={g.document_id}
             open={groups.length === 1}
-            className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            className="group overflow-hidden sheet"
           >
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
               <div className="min-w-0">
-                <span className="block truncate font-medium text-slate-900 dark:text-slate-100" title={g.filename}>
+                <span className="block truncate font-medium text-ink" title={g.filename}>
                   {g.filename}
                 </span>
-                <span className="block text-xs text-slate-600 dark:text-slate-400">
+                <span className="block text-[11px] text-ink-2">
                   {first.uploaded_at ? `Uploaded ${formatDateTime(first.uploaded_at)} · ` : ''}
                   {first.patient_ref ? `Patient ${first.patient_ref} · ` : ''}
                   {first.encounter_ref ? `Encounter ${first.encounter_ref} · ` : ''}
@@ -183,12 +195,19 @@ function PagesTable({ rows }: { rows: PageSummary[] }) {
               <svg
                 aria-hidden="true"
                 viewBox="0 0 20 20"
-                className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
+                className="h-4 w-4 shrink-0 text-ink-2 transition-transform group-open:rotate-180"
               >
-                <path d="M5 7l5 5 5-5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M5 7l5 5 5-5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </summary>
-            <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
+            <div className="overflow-x-auto border-t border-rule">
               <table className="table-base">
                 <caption className="sr-only">Pages in {g.filename}</caption>
                 <thead>
@@ -207,14 +226,14 @@ function PagesTable({ rows }: { rows: PageSummary[] }) {
                       <th scope="row" className="px-3 py-2 text-left align-top font-normal">
                         <Link
                           to={`/pages/${p.page_version_id}`}
-                          className="font-medium text-sky-800 underline dark:text-sky-300"
+                          className="font-medium text-chart underline"
                         >
                           Page {p.ordinal}
                           {p.printed_page_label ? ` ${p.printed_page_label}` : ''}
                         </Link>
                         {/* Version number is shown because only active versions are listed; v3 means
                             two earlier attempts exist in this page's history. */}
-                        <span className="block text-xs text-slate-600 dark:text-slate-400">
+                        <span className="block text-[11px] text-ink-2">
                           Version {p.version_no}
                           {p.version_no > 1 ? ' (active)' : ''}
                         </span>
@@ -227,22 +246,23 @@ function PagesTable({ rows }: { rows: PageSummary[] }) {
                         {p.defect_codes && p.defect_codes.length > 0 ? (
                           <ul className="space-y-0.5">
                             {p.defect_codes.map((c) => (
-                              <li key={c} className="text-xs text-slate-800 dark:text-slate-200">
+                              <li key={c} className="text-[11px] text-ink">
                                 {defectLabel(c)}
                               </li>
                             ))}
                           </ul>
                         ) : p.page_class === 'unchecked' || p.page_class === 'failed' ? (
-                          <span className="text-xs text-slate-600 dark:text-slate-400">Not measured</span>
+                          <span className="text-[11px] text-ink-2">Not measured</span>
                         ) : (
-                          <span className="text-xs text-slate-600 dark:text-slate-400">None</span>
+                          <span className="text-[11px] text-ink-2">None</span>
                         )}
                       </td>
                       <td className="align-top">
                         <StatusPill view={handwritingView(p.handwriting_status)} size="sm" />
                         {p.handwriting_status === 'detected' && p.handwriting_region_count ? (
-                          <span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-400">
-                            {p.handwriting_region_count} region{p.handwriting_region_count === 1 ? '' : 's'}
+                          <span className="mt-0.5 block text-[11px] text-ink-2">
+                            {p.handwriting_region_count} region
+                            {p.handwriting_region_count === 1 ? '' : 's'}
                           </span>
                         ) : null}
                       </td>
@@ -270,7 +290,7 @@ function DocumentsTable({ rows }: { rows: DocumentSummary[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="overflow-x-auto sheet">
       <table className="table-base">
         <caption className="sr-only">Documents matching the current filters</caption>
         <thead>
@@ -287,18 +307,19 @@ function DocumentsTable({ rows }: { rows: DocumentSummary[] }) {
           {rows.map((d) => (
             <tr key={d.id}>
               <th scope="row" className="px-3 py-2 text-left align-top font-normal">
-                <span className="block max-w-xs truncate font-medium text-slate-900 dark:text-slate-100" title={d.original_filename}>
+                <span
+                  className="block max-w-xs truncate font-medium text-ink"
+                  title={d.original_filename}
+                >
                   {d.original_filename}
                 </span>
                 {d.batch_name ? (
-                  <span className="block text-xs text-slate-600 dark:text-slate-400">{d.batch_name}</span>
+                  <span className="block text-[11px] text-ink-2">{d.batch_name}</span>
                 ) : null}
               </th>
               <td className="align-top">
-                <span className="block text-xs">{d.patient_ref || '—'}</span>
-                <span className="block text-xs text-slate-600 dark:text-slate-400">
-                  {d.encounter_ref || '—'}
-                </span>
+                <span className="block text-[11px]">{d.patient_ref || '—'}</span>
+                <span className="block text-[11px] text-ink-2">{d.encounter_ref || '—'}</span>
               </td>
               <td className="align-top tabular-nums">{d.page_count}</td>
               <td className="align-top tabular-nums">{formatBytes(d.byte_size)}</td>
@@ -306,7 +327,7 @@ function DocumentsTable({ rows }: { rows: DocumentSummary[] }) {
               <td className="align-top">
                 <StatusPill view={ingestView(d.ingest_status)} size="sm" />
                 {d.ingest_error ? (
-                  <p className="mt-1 max-w-sm text-xs text-red-900 dark:text-red-200">{d.ingest_error}</p>
+                  <p className="mt-1 max-w-sm text-[11px] text-ink">{d.ingest_error}</p>
                 ) : null}
               </td>
             </tr>

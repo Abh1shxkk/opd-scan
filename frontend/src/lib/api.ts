@@ -560,7 +560,7 @@ export const api = {
     request<ThresholdsResponse>('/settings/thresholds', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ thresholds }),
+      body: JSON.stringify({ values: thresholds }),
     }),
   getCapabilities: () => request<CapabilitiesResponse | Record<string, Capability>>('/settings/capabilities'),
 

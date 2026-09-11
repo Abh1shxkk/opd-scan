@@ -39,11 +39,16 @@ function RequireRole({ role, children }: { role: Role; children: ReactNode }) {
   const { can } = useAuth();
   if (!can(role)) {
     return (
-      <main className="mx-auto max-w-2xl p-8">
-        <h1 className="text-xl font-semibold">You do not have access to this screen</h1>
-        <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
-          This area is limited to the <strong>{role}</strong> role. Ask an administrator if you need it.
-        </p>
+      <main className="mx-auto max-w-xl p-6">
+        <div className="sheet p-4">
+          <h1 className="text-[17px] font-semibold tracking-tight text-ink">
+            You do not have access to this screen
+          </h1>
+          <p className="mt-1.5 text-[13px] text-ink-2">
+            This area is limited to the <strong className="text-ink">{role}</strong> role. Ask an
+            administrator if you need it.
+          </p>
+        </div>
       </main>
     );
   }
@@ -52,13 +57,13 @@ function RequireRole({ role, children }: { role: Role; children: ReactNode }) {
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen flex-col overflow-hidden bg-paper md:flex-row">
       <a href="#main" className="skip-link">
         Skip to main content
       </a>
       <Sidebar />
-      <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto p-6 lg:p-8">
-        <div className="mx-auto max-w-[100rem]">{children}</div>
+      <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto p-3 lg:p-5">
+        <div className="mx-auto max-w-[110rem]">{children}</div>
       </main>
     </div>
   );
@@ -146,8 +151,15 @@ export default function App() {
                 <Route
                   path="*"
                   element={
-                    <div className="p-8">
-                      <h1 className="text-xl font-semibold">Page not found</h1>
+                    <div className="p-6">
+                      <div className="sheet max-w-xl p-4">
+                        <h1 className="text-[17px] font-semibold tracking-tight text-ink">
+                          Page not found
+                        </h1>
+                        <p className="mt-1.5 text-[13px] text-ink-2">
+                          There is no screen at this address.
+                        </p>
+                      </div>
                     </div>
                   }
                 />

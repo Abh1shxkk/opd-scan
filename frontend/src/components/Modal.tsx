@@ -88,7 +88,7 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8">
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-[1px]"
+        className="fixed inset-0 bg-ink/60 backdrop-blur-[1px]"
         aria-hidden="true"
         onClick={onClose}
       />
@@ -100,15 +100,15 @@ export function Modal({
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className={`relative z-10 w-full ${width} rounded-xl border border-slate-200 bg-white shadow-xl focus:outline-none dark:border-slate-800 dark:bg-slate-900`}
+        className={`relative z-10 w-full ${width} sheet focus:outline-none`}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4 dark:border-slate-800">
+        <div className="flex items-start justify-between gap-4 border-b border-rule p-4">
           <div>
-            <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+            <h2 id={titleId} className="text-[15px] font-semibold tracking-tight text-ink">
               {title}
             </h2>
             {description ? (
-              <p id={descId} className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+              <p id={descId} className="mt-1 text-[13px] text-ink-2">
                 {description}
               </p>
             ) : null}
@@ -116,9 +116,9 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="rounded p-1 text-ink-2 hover:bg-chart/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
-            <span aria-hidden="true" className="text-lg leading-none">
+            <span aria-hidden="true" className="text-[15px] leading-none">
               ✕
             </span>
             <span className="sr-only">Close dialog</span>
@@ -126,7 +126,7 @@ export function Modal({
         </div>
         <div className="p-4">{children}</div>
         {footer ? (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 p-4 dark:border-slate-800">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-rule p-4">
             {footer}
           </div>
         ) : null}

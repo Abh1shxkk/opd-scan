@@ -196,6 +196,13 @@ class DiagnosisOut(BaseModel):
     icd_code_verbatim: str | None
     is_handwritten: bool
     region: dict[str, Any] | None
+    # Safety context from the extractor. It is persisted inside `region_json` (see
+    # services/pipeline.py) and lifted back out when serialising, so a reviewer can see what was
+    # changed on the way from `raw_text` to `cleaned_text` and which abbreviations were left
+    # deliberately unexpanded. Never inferred, never filled in when the extractor said nothing.
+    note: str | None = None
+    cleaning_applied: list[str] = []
+    ambiguous_abbreviations: list[str] = []
     confidence: float | None
     model_version: str
     provider_used: str | None
@@ -212,6 +219,9 @@ class DiagnosisReviewOut(BaseModel):
     id: str
     reviewer_id: str
     reviewer_email: str | None = None
+    # The name a human recognises. A review trail identified only by UUID cannot be read by the
+    # people whose decisions it records.
+    reviewer_name: str | None = None
     action: str
     corrected_text: str | None
     corrected_qualifier: str | None

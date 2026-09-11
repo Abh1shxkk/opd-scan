@@ -11,7 +11,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { completenessView, formatDateTime } from '../lib/status';
-import { Panel } from './StatTile';
+import { Panel } from './Sheet';
 import { StatusPill } from './StatusPill';
 import { ErrorState, Spinner } from './ui';
 
@@ -39,25 +39,25 @@ export function CompletenessPanel({ caseId }: { caseId: string }) {
       <StatusPill view={view} showDetail />
 
       {status === 'not_verified' ? (
-        <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+        <p className="mt-2 text-[13px] text-ink-2">
           Attach a checklist to this case to have its completeness assessed. Until then nothing is
           claimed about whether pages are missing.
         </p>
       ) : null}
 
       {q.data?.checklist_name ? (
-        <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+        <p className="mt-2 text-[11px] text-ink-2">
           Checklist: {q.data.checklist_name}
           {q.data.computed_at ? ` · computed ${formatDateTime(q.data.computed_at)}` : ''}
         </p>
       ) : null}
 
       {status !== 'not_verified' && findingEntries.length > 0 ? (
-        <dl className="mt-3 space-y-1 text-sm">
+        <dl className="mt-3 space-y-1 text-[13px]">
           {findingEntries.map(([key, value]) => (
             <div key={key} className="grid grid-cols-[12rem_1fr] gap-2">
-              <dt className="text-slate-600 dark:text-slate-400">{key.replace(/_/g, ' ')}</dt>
-              <dd className="text-slate-900 dark:text-slate-100">
+              <dt className="text-ink-2">{key.replace(/_/g, ' ')}</dt>
+              <dd className="text-ink">
                 {Array.isArray(value) ? value.join(', ') : String(value)}
               </dd>
             </div>

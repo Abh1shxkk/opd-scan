@@ -1,0 +1,547 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-11T00:00:00Z",
+  "title": "Design System: OPD Scan QC",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Chart Stock",
+        "canonical": "rgb(251 250 246)",
+        "darkValue": "rgb(21 24 27)",
+        "cssVariable": "--c-paper",
+        "purpose": "The ground the application is printed on: body, sheet interiors, input fields, the unfilled part of every band.",
+        "tonalRamp": [
+          "oklch(15% 0.005 95)",
+          "oklch(26% 0.005 95)",
+          "oklch(37% 0.006 95)",
+          "oklch(48% 0.006 95)",
+          "oklch(59% 0.006 95)",
+          "oklch(70% 0.006 95)",
+          "oklch(81% 0.005 95)",
+          "oklch(98% 0.005 95)"
+        ]
+      },
+      "paper-2": {
+        "role": "neutral",
+        "displayName": "Ruled Band",
+        "canonical": "rgb(243 241 233)",
+        "darkValue": "rgb(29 33 37)",
+        "cssVariable": "--c-paper-2",
+        "purpose": "Zebra table row, index-column ground, disabled control, empty-state field, chart-head identification cell.",
+        "tonalRamp": [
+          "oklch(15% 0.01 95)",
+          "oklch(26% 0.01 95)",
+          "oklch(37% 0.011 95)",
+          "oklch(48% 0.011 95)",
+          "oklch(59% 0.011 95)",
+          "oklch(70% 0.011 95)",
+          "oklch(81% 0.01 95)",
+          "oklch(96% 0.01 95)"
+        ]
+      },
+      "paper-3": {
+        "role": "neutral",
+        "displayName": "Pre-Printed Header Fill",
+        "canonical": "rgb(234 231 220)",
+        "darkValue": "rgb(37 42 47)",
+        "cssVariable": "--c-paper-3",
+        "purpose": "Section heads and sticky table header cells — the tint a form uses for the part printed before anyone wrote on it.",
+        "tonalRamp": [
+          "oklch(15% 0.018 90)",
+          "oklch(26% 0.018 90)",
+          "oklch(37% 0.019 90)",
+          "oklch(48% 0.019 90)",
+          "oklch(59% 0.019 90)",
+          "oklch(70% 0.019 90)",
+          "oklch(81% 0.018 90)",
+          "oklch(93% 0.018 90)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline Grid",
+        "canonical": "rgb(207 201 184)",
+        "darkValue": "rgb(51 58 64)",
+        "cssVariable": "--c-rule",
+        "purpose": "The lightest rule: row dividers, band track borders, the 8px chart grid.",
+        "tonalRamp": [
+          "oklch(15% 0.025 95)",
+          "oklch(26% 0.025 95)",
+          "oklch(37% 0.027 95)",
+          "oklch(48% 0.027 95)",
+          "oklch(59% 0.027 95)",
+          "oklch(70% 0.027 95)",
+          "oklch(83% 0.025 95)",
+          "oklch(92% 0.02 95)"
+        ]
+      },
+      "rule-2": {
+        "role": "neutral",
+        "displayName": "Section Rule",
+        "canonical": "rgb(168 160 140)",
+        "darkValue": "rgb(74 83 91)",
+        "cssVariable": "--c-rule-2",
+        "purpose": "The structural rule: sheet outline, section head, table head, input box, and the 3px double rule.",
+        "tonalRamp": [
+          "oklch(15% 0.03 95)",
+          "oklch(26% 0.03 95)",
+          "oklch(37% 0.032 95)",
+          "oklch(48% 0.032 95)",
+          "oklch(59% 0.032 95)",
+          "oklch(68% 0.03 95)",
+          "oklch(81% 0.028 95)",
+          "oklch(92% 0.022 95)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Writing Ink",
+        "canonical": "rgb(26 29 33)",
+        "darkValue": "rgb(232 230 223)",
+        "cssVariable": "--c-ink",
+        "purpose": "Every primary word, the masthead mark's border, the live reference detent, the modal scrim at 60%.",
+        "tonalRamp": [
+          "oklch(22% 0.008 250)",
+          "oklch(30% 0.009 250)",
+          "oklch(40% 0.01 250)",
+          "oklch(50% 0.01 250)",
+          "oklch(60% 0.01 250)",
+          "oklch(70% 0.009 250)",
+          "oklch(82% 0.008 250)",
+          "oklch(93% 0.006 250)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Pencil Grey",
+        "canonical": "rgb(90 97 105)",
+        "darkValue": "rgb(152 160 168)",
+        "cssVariable": "--c-ink-2",
+        "purpose": "Secondary text, field labels, annotations, unmeasured figures, the hatch stroke at 20%, the ghost detent, the scrollbar thumb.",
+        "tonalRamp": [
+          "oklch(15% 0.012 250)",
+          "oklch(26% 0.014 250)",
+          "oklch(37% 0.015 250)",
+          "oklch(44% 0.015 250)",
+          "oklch(59% 0.015 250)",
+          "oklch(70% 0.014 250)",
+          "oklch(81% 0.012 250)",
+          "oklch(92% 0.008 250)"
+        ]
+      },
+      "chart": {
+        "role": "primary",
+        "displayName": "Pre-Printed Chart Blue",
+        "canonical": "rgb(31 78 121)",
+        "darkValue": "rgb(127 179 224)",
+        "cssVariable": "--c-chart",
+        "purpose": "The single structural accent — links, the filled primary button, the inked active nav item, the focus outline, the 7%/12% row washes, selection at 22%, accent-color and caret-color. Also the `info` status ink.",
+        "tonalRamp": [
+          "oklch(15% 0.05 250)",
+          "oklch(26% 0.075 250)",
+          "oklch(37% 0.09 250)",
+          "oklch(48% 0.095 250)",
+          "oklch(59% 0.09 250)",
+          "oklch(70% 0.075 250)",
+          "oklch(81% 0.055 250)",
+          "oklch(92% 0.03 250)"
+        ]
+      },
+      "band": {
+        "role": "tertiary",
+        "displayName": "In-Band Green",
+        "canonical": "rgb(47 107 60)",
+        "darkValue": "rgb(111 191 132)",
+        "cssVariable": "--c-band",
+        "purpose": "Status ink `ok` only — acceptable, ingested, confirmed, accepted. Never decorative.",
+        "tonalRamp": [
+          "oklch(15% 0.05 150)",
+          "oklch(26% 0.075 150)",
+          "oklch(37% 0.095 150)",
+          "oklch(45% 0.10 150)",
+          "oklch(59% 0.10 150)",
+          "oklch(70% 0.085 150)",
+          "oklch(81% 0.065 150)",
+          "oklch(92% 0.035 150)"
+        ]
+      },
+      "note": {
+        "role": "tertiary",
+        "displayName": "Wants-A-Look Ochre",
+        "canonical": "rgb(138 85 18)",
+        "darkValue": "rgb(217 164 65)",
+        "cssVariable": "--c-note",
+        "purpose": "Status ink `warn` only — needs review, awaiting review, the unreviewed-AI badge, and the warning margin note.",
+        "tonalRamp": [
+          "oklch(15% 0.05 60)",
+          "oklch(26% 0.075 60)",
+          "oklch(37% 0.09 60)",
+          "oklch(45% 0.10 60)",
+          "oklch(59% 0.105 60)",
+          "oklch(70% 0.10 60)",
+          "oklch(81% 0.075 60)",
+          "oklch(92% 0.04 60)"
+        ]
+      },
+      "plot": {
+        "role": "tertiary",
+        "displayName": "Out-Of-Band Red",
+        "canonical": "rgb(163 42 28)",
+        "darkValue": "rgb(232 121 106)",
+        "cssVariable": "--c-plot",
+        "purpose": "Status ink `bad` only — rescan required, quality check failed, errors, and the destructive button variant (coloured by the status rule, not a danger palette).",
+        "tonalRamp": [
+          "oklch(15% 0.07 30)",
+          "oklch(26% 0.11 30)",
+          "oklch(37% 0.145 30)",
+          "oklch(45% 0.16 30)",
+          "oklch(59% 0.15 30)",
+          "oklch(70% 0.125 30)",
+          "oklch(81% 0.09 30)",
+          "oklch(92% 0.05 30)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "page-title": {
+        "displayName": "Page Title",
+        "purpose": "The ChartHead h1, once per screen, above the double rule."
+      },
+      "dialog-title": {
+        "displayName": "Dialog Title",
+        "purpose": "Modal headings. 17px at the same weight carries the login heading and the no-access notice."
+      },
+      "section-title": {
+        "displayName": "Section Title",
+        "purpose": "The Panel heading inside a sheet head — Archivo Narrow, uppercase, letterspaced."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Every row, cell, value and sentence. Descriptions cap at 68–70ch. lining-nums globally; tabular-nums on any figure in a column."
+      },
+      "annotation": {
+        "displayName": "Annotation",
+        "purpose": "Field hints, margin notes, expanded band readouts, the qualifier line under a status count."
+      },
+      "field-label": {
+        "displayName": "Field Label",
+        "purpose": "The .field-label primitive — every form label, table header cell, chart-head identification field and definition term."
+      },
+      "control-label": {
+        "displayName": "Control Label",
+        "purpose": "Button text only."
+      }
+    },
+    "fonts": [
+      {
+        "family": "Archivo",
+        "role": "body/UI",
+        "format": "variable woff2, self-hosted",
+        "weightAxis": "400 700",
+        "subsets": ["latin", "latin-ext"],
+        "fontDisplay": "swap",
+        "files": [
+          "frontend/src/fonts/archivo-latin.woff2",
+          "frontend/src/fonts/archivo-latin-ext.woff2"
+        ],
+        "note": "Self-hosted, never CDN-linked: this system deploys on-premise inside hospital networks."
+      },
+      {
+        "family": "Archivo Narrow",
+        "role": "condensed caps labels",
+        "format": "variable woff2, self-hosted",
+        "weightAxis": "500 700",
+        "subsets": ["latin", "latin-ext"],
+        "fontDisplay": "swap",
+        "files": [
+          "frontend/src/fonts/archivo-narrow-latin.woff2",
+          "frontend/src/fonts/archivo-narrow-latin-ext.woff2"
+        ]
+      }
+    ],
+    "shadows": [
+      {
+        "name": "none",
+        "value": "none",
+        "purpose": "The whole vocabulary. Every Tailwind boxShadow step (sm, DEFAULT, md, lg, xl, 2xl, inner) is overridden to `none`, so a stray shadow utility renders flat. Depth is a border in one of two weights plus tonal stock layering."
+      },
+      {
+        "name": "modal-scrim",
+        "value": "background: rgb(var(--c-ink) / 0.6); backdrop-filter: blur(1px)",
+        "purpose": "Not an elevation token — the single scrim behind the modal dialog, at exactly one site in the build."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-chart",
+        "value": "cubic-bezier(0.22, 0.61, 0.36, 1)",
+        "purpose": "The only authored easing: damped, single-axis, no overshoot. Applied to every colour transition and to the band-expand grid-row collapse."
+      },
+      {
+        "name": "duration-standard",
+        "value": "150ms",
+        "purpose": "The only transition duration in the application. Used 11 times; no other duration exists."
+      },
+      {
+        "name": "trace",
+        "value": "trace 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite; @keyframes trace { 0% { transform: translateX(-110%) } 100% { transform: translateX(330%) } }",
+        "purpose": "The one authored motion in the application: a value being plotted. Used by the loading indicator and nowhere else."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; .trace { animation: none !important; inset: 0; width: 100% }",
+        "purpose": "Under prefers-reduced-motion every transition collapses to instant and the trace stops moving, leaving the whole track hatched — the honest still picture of a value that has not arrived."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ],
+    "layout": [
+      { "name": "index-column", "value": "13.5rem (216px), md and up; a horizontal scrolling strip below md" },
+      { "name": "content-cap", "value": "110rem, centred" },
+      { "name": "main-padding", "value": "12px, 20px at lg" },
+      { "name": "login-sheet", "value": "23rem max width, centred on paper-2" },
+      { "name": "hairline", "value": "--hair: 1px; 0.5px above 2dppx — a printed rule is one device pixel" },
+      { "name": "touch-target", "value": "@media (pointer: coarse): 40px minimum control height, 1.15rem checkboxes and radios" }
+    ],
+    "textures": [
+      {
+        "name": "hatch",
+        "value": "repeating-linear-gradient(45deg, rgb(var(--c-ink-2) / 0.2) 0, rgb(var(--c-ink-2) / 0.2) var(--hair), transparent var(--hair), transparent 6px)",
+        "purpose": "The one meaning-bearing texture: this region was never measured. Applied to an unmeasured status stamp, a band with no value, a band whose known value describes something unmeasured, and the stalled loading track. Never decoration; always paired with a text label. An empty result set is deliberately NOT hatched."
+      },
+      {
+        "name": "chart-grid",
+        "value": "linear-gradient(to right, rgb(var(--c-rule) / 0.55) var(--hair), transparent var(--hair)), linear-gradient(to bottom, rgb(var(--c-rule) / 0.4) var(--hair), transparent var(--hair)); background-size: 8px 8px",
+        "purpose": "The printed measuring grid. Applied only to a region that actually plots a value against a scale — two sites in the build, both band tracks. Never page decoration."
+      },
+      {
+        "name": "rule-double",
+        "value": "border-bottom: 3px double rgb(var(--c-rule-2))",
+        "purpose": "The double rule a printed form uses to close a section head. Present once per screen, under the ChartHead."
+      }
+    ],
+    "statusVocabulary": {
+      "source": "frontend/src/lib/status.ts",
+      "purpose": "Single source of truth for how a status is worded and coloured; a screen never hand-writes a label for a status that has a canonical one.",
+      "fields": [
+        { "name": "tone", "values": ["ok", "warn", "bad", "info", "neutral"], "drives": "the status ink only — border at 50%, wash at 7%, mark and text in full ink" },
+        { "name": "icon", "values": ["a drawn lucide icon"], "drives": "the mark before the label, so the status survives greyscale and colour blindness (WCAG 1.4.1)" },
+        { "name": "qualifier", "values": ["could not be measured", "not yet run", "check failed", "no provider configured", "queued", "not legible", "extraction failed", "analysis failed", "not stated on the page", "no checklist attached"], "drives": "a short visible reason rendered beside the label — never hidden in a title, because no tooltip exists on the tablets this is used on" },
+        { "name": "unmeasured", "values": ["true", "absent"], "drives": "the hatching — 15 statuses carry it, separating 'nothing was established' from 'nothing is there'" }
+      ],
+      "toneMap": {
+        "ok": "band",
+        "warn": "note",
+        "bad": "plot",
+        "info": "chart",
+        "neutral": "ink-2 on paper-2 with a rule-2 border"
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The filled action — chart blue, square, condensed caps. One of only two filled controls in the system.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Accept page</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 4px 12px; border-radius: 0; font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1; cursor: pointer; transition: background-color 150ms cubic-bezier(0.22,0.61,0.36,1), color 150ms cubic-bezier(0.22,0.61,0.36,1); } .ds-btn:focus-visible { outline: 2px solid rgb(var(--c-chart)); outline-offset: 2px; } .ds-btn:disabled { cursor: not-allowed; opacity: 0.7; } .ds-btn-primary { border: 1px solid rgb(var(--c-chart)); background: rgb(var(--c-chart)); color: rgb(var(--c-paper)); } .ds-btn-primary:hover { background: rgb(var(--c-chart) / 0.9); } .ds-btn-primary:disabled { border-color: rgb(var(--c-rule-2)); background: rgb(var(--c-ink-2)); } @media (pointer: coarse) { .ds-btn { min-height: 40px; } }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The default variant — a ruled box on band stock. Every non-committing action.",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">Try again</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 4px 12px; border-radius: 0; font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1; cursor: pointer; transition: background-color 150ms cubic-bezier(0.22,0.61,0.36,1); } .ds-btn:focus-visible { outline: 2px solid rgb(var(--c-chart)); outline-offset: 2px; } .ds-btn-secondary { border: 1px solid rgb(var(--c-rule-2)); background: rgb(var(--c-paper-2)); color: rgb(var(--c-ink)); } .ds-btn-secondary:hover { background: rgb(var(--c-paper-3)); } @media (pointer: coarse) { .ds-btn { min-height: 40px; } }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action, coloured in the same ink that means 'out of band' everywhere else — not a separate danger palette.",
+      "html": "<button class=\"ds-btn ds-btn-danger\">Request rescan</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 4px 12px; border-radius: 0; font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1; cursor: pointer; transition: background-color 150ms cubic-bezier(0.22,0.61,0.36,1); } .ds-btn:focus-visible { outline: 2px solid rgb(var(--c-chart)); outline-offset: 2px; } .ds-btn-danger { border: 1px solid rgb(var(--c-plot)); background: rgb(var(--c-plot) / 0.07); color: rgb(var(--c-plot)); } .ds-btn-danger:hover { background: rgb(var(--c-plot) / 0.14); } .ds-btn-danger:disabled { border-color: rgb(var(--c-rule-2)); color: rgb(var(--c-ink-2)); cursor: not-allowed; opacity: 0.7; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "The boxed field of a pre-printed form: a condensed caps label above, a hairline box, and nothing else.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-mrn\">Hospital number</label><input class=\"ds-input\" id=\"ds-mrn\" type=\"text\" placeholder=\"MRN-000000\" /><p class=\"ds-field-hint\">As printed on the case file cover.</p></div>",
+      "css": ".ds-field-label { display: block; margin-bottom: 4px; font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1; color: rgb(var(--c-ink-2)); } .ds-input { width: 100%; box-sizing: border-box; border: 1px solid rgb(var(--c-rule-2)); border-radius: 0; background: rgb(var(--c-paper)); padding: 6px 8px; font-family: Archivo, system-ui, sans-serif; font-size: 13px; color: rgb(var(--c-ink)); } .ds-input::placeholder { color: rgb(var(--c-ink-2) / 0.7); } .ds-input:focus-visible { outline: 2px solid rgb(var(--c-chart)); outline-offset: 2px; } .ds-input:disabled { background: rgb(var(--c-paper-2)); color: rgb(var(--c-ink-2)); } .ds-field-hint { margin: 4px 0 0; font-family: Archivo, system-ui, sans-serif; font-size: 11px; line-height: 1.375; color: rgb(var(--c-ink-2)); } @media (pointer: coarse) { .ds-input { min-height: 40px; } }"
+    },
+    {
+      "name": "Status Stamp",
+      "kind": "chip",
+      "refersTo": "status-stamp",
+      "description": "The stamped verdict: tone, drawn mark, fixed label, and a visible qualifier where two states share a label. All wording comes from lib/status.ts.",
+      "html": "<span class=\"ds-stamp ds-stamp-ok\"><svg class=\"ds-stamp-mark\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"/></svg><span>Acceptable</span></span> <span class=\"ds-stamp ds-stamp-bad\"><svg class=\"ds-stamp-mark\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg><span>Rescan required</span></span>",
+      "css": ".ds-stamp { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; border: 1px solid; border-radius: 0; padding: 2px 6px; font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1; } .ds-stamp-mark { flex: 0 0 auto; } .ds-stamp-ok { color: rgb(var(--c-band)); border-color: rgb(var(--c-band) / 0.5); background: rgb(var(--c-band) / 0.07); } .ds-stamp-warn { color: rgb(var(--c-note)); border-color: rgb(var(--c-note) / 0.5); background: rgb(var(--c-note) / 0.07); } .ds-stamp-bad { color: rgb(var(--c-plot)); border-color: rgb(var(--c-plot) / 0.5); background: rgb(var(--c-plot) / 0.07); } .ds-stamp-info { color: rgb(var(--c-chart)); border-color: rgb(var(--c-chart) / 0.5); background: rgb(var(--c-chart) / 0.07); } .ds-stamp-neutral { color: rgb(var(--c-ink-2)); border-color: rgb(var(--c-rule-2)); background: rgb(var(--c-paper-2)); }"
+    },
+    {
+      "name": "Status Stamp — Unmeasured",
+      "kind": "chip",
+      "refersTo": "status-stamp",
+      "description": "A verdict whose `unmeasured` flag is set: hatched over its wash, with the qualifier rendered beside the label so 'Handwriting not checked' can never read as 'No handwriting'.",
+      "html": "<span class=\"ds-stamp ds-stamp-bad ds-hatch\"><svg class=\"ds-stamp-mark\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/></svg><span>Handwriting not checked</span><span class=\"ds-stamp-dot\" aria-hidden=\"true\">·</span><span class=\"ds-stamp-qualifier\">no provider configured</span></span>",
+      "css": ".ds-stamp { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; border: 1px solid; border-radius: 0; padding: 2px 6px; font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1; } .ds-stamp-mark { flex: 0 0 auto; } .ds-stamp-bad { color: rgb(var(--c-plot)); border-color: rgb(var(--c-plot) / 0.5); background: rgb(var(--c-plot) / 0.07); } .ds-stamp-dot { flex: 0 0 auto; opacity: 0.45; } .ds-stamp-qualifier { font-weight: 400; opacity: 0.9; } .ds-hatch { background-image: repeating-linear-gradient(45deg, rgb(var(--c-ink-2) / 0.2) 0, rgb(var(--c-ink-2) / 0.2) 1px, transparent 1px, transparent 6px); } @media (min-resolution: 2dppx) { .ds-hatch { background-image: repeating-linear-gradient(45deg, rgb(var(--c-ink-2) / 0.2) 0, rgb(var(--c-ink-2) / 0.2) 0.5px, transparent 0.5px, transparent 6px); } }"
+    },
+    {
+      "name": "Band Plot",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The signature instrument: a value plotted against the band it is read against, on a printed 8px grid, with a solid reference detent and a broken ghost detent for a threshold the system has moved away from. A band with no value is hatched, not empty.",
+      "html": "<span class=\"ds-band ds-chart-grid\" aria-hidden=\"true\"><span class=\"ds-band-fill ds-band-ok\" style=\"width:72%\"></span><span class=\"ds-detent ds-detent-reference\" style=\"left:80%\"></span><span class=\"ds-detent ds-detent-ghost\" style=\"left:64%\"></span></span> <span class=\"ds-band ds-chart-grid\" aria-hidden=\"true\"><span class=\"ds-band-fill ds-band-unmeasured ds-hatch\" style=\"width:34%\"></span></span>",
+      "css": ".ds-band { position: relative; display: block; width: 128px; height: 10px; flex: 0 0 auto; border: 1px solid rgb(var(--c-rule)); border-radius: 0; background-color: rgb(var(--c-paper)); } .ds-chart-grid { background-image: linear-gradient(to right, rgb(var(--c-rule) / 0.55) 1px, transparent 1px), linear-gradient(to bottom, rgb(var(--c-rule) / 0.4) 1px, transparent 1px); background-size: 8px 8px; } .ds-band-fill { position: absolute; top: 0; bottom: 0; left: 0; transition: width 150ms cubic-bezier(0.22,0.61,0.36,1); } .ds-band-ok { background: rgb(var(--c-band)); } .ds-band-warn { background: rgb(var(--c-note)); } .ds-band-bad { background: rgb(var(--c-plot)); } .ds-band-plain { background: rgb(var(--c-chart)); } .ds-band-unmeasured { border-right: 1px solid rgb(var(--c-ink-2) / 0.6); } .ds-hatch { background-image: repeating-linear-gradient(45deg, rgb(var(--c-ink-2) / 0.2) 0, rgb(var(--c-ink-2) / 0.2) 1px, transparent 1px, transparent 6px); } .ds-detent { position: absolute; top: -1px; bottom: -1px; width: 1px; } .ds-detent-reference { background: rgb(var(--c-ink)); } .ds-detent-ghost { color: rgb(var(--c-ink-2)); background-color: rgb(var(--c-ink-2)); background-image: repeating-linear-gradient(to bottom, currentColor 0 2px, transparent 2px 4px); } @media (prefers-reduced-motion: reduce) { .ds-band-fill { transition-duration: 0.001ms; } }"
+    },
+    {
+      "name": "Reading Row",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "A labelled reading — name, dotted leader, tabular figure, band — stacked in a flush panel over hairline dividers. Hover or focus opens the band's detents in place over 150ms; that grid-row collapse is the one named moment of motion.",
+      "html": "<div class=\"ds-readings\"><a class=\"ds-reading ds-reading-link\" href=\"#\"><span class=\"ds-reading-label\">Acceptable pages</span><span class=\"ds-reading-leader\" aria-hidden=\"true\"></span><span class=\"ds-reading-value\">18,412</span><span class=\"ds-reading-band\"><span class=\"ds-band ds-chart-grid\" aria-hidden=\"true\"><span class=\"ds-band-fill ds-band-ok\" style=\"width:72%\"></span></span></span><span class=\"ds-reading-expand\"><span><span class=\"ds-reading-expand-inner\">Threshold 0.62 · previously 0.55, retuned from 240 reviewer corrections</span></span></span></a><div class=\"ds-reading\"><span class=\"ds-reading-label\">Never measured</span><span class=\"ds-reading-leader\" aria-hidden=\"true\"></span><span class=\"ds-reading-value ds-reading-value-unmeasured\">96</span><span class=\"ds-reading-band\"><span class=\"ds-band ds-chart-grid\" aria-hidden=\"true\"><span class=\"ds-band-fill ds-band-unmeasured ds-hatch\" style=\"width:4%\"></span></span></span><span class=\"ds-reading-note\">Quality check failed or has not run. Nothing is known about these pages.</span></div></div>",
+      "css": ".ds-readings > * + * { border-top: 1px solid rgb(var(--c-rule)); } .ds-reading { display: grid; grid-template-columns: auto minmax(1.5rem, 1fr) auto auto; align-items: center; column-gap: 4px; padding: 6px 8px; font-family: Archivo, system-ui, sans-serif; font-size: 13px; color: rgb(var(--c-ink)); text-decoration: none; } .ds-reading-link { transition: background-color 150ms cubic-bezier(0.22,0.61,0.36,1); } .ds-reading-link:hover, .ds-reading:hover { background: rgb(var(--c-chart) / 0.07); } .ds-reading:focus-visible { outline: 2px solid rgb(var(--c-chart)); outline-offset: 2px; } .ds-reading-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-reading-leader { margin: 0 4px; min-width: 1.5rem; border-bottom: 1px dotted rgb(var(--c-rule-2)); } .ds-reading-value { flex: 0 0 auto; font-weight: 600; font-variant-numeric: tabular-nums lining-nums; } .ds-reading-value-unmeasured { color: rgb(var(--c-ink-2)); } .ds-reading-band { display: flex; justify-content: flex-end; } .ds-reading-note { grid-column: span 4; margin-top: 4px; font-size: 11px; line-height: 1.375; color: rgb(var(--c-ink-2)); } .ds-reading-expand { grid-column: span 4; display: grid; grid-template-rows: 0fr; overflow: hidden; transition: grid-template-rows 150ms cubic-bezier(0.22,0.61,0.36,1); } .ds-reading:hover .ds-reading-expand, .ds-reading:focus-within .ds-reading-expand { grid-template-rows: 1fr; } .ds-reading-expand > span { min-height: 0; overflow: hidden; } .ds-reading-expand-inner { display: block; padding-top: 4px; font-size: 11px; line-height: 1.375; color: rgb(var(--c-ink-2)); } .ds-band { position: relative; display: block; width: 128px; height: 10px; border: 1px solid rgb(var(--c-rule)); background-color: rgb(var(--c-paper)); } .ds-chart-grid { background-image: linear-gradient(to right, rgb(var(--c-rule) / 0.55) 1px, transparent 1px), linear-gradient(to bottom, rgb(var(--c-rule) / 0.4) 1px, transparent 1px); background-size: 8px 8px; } .ds-band-fill { position: absolute; top: 0; bottom: 0; left: 0; } .ds-band-ok { background: rgb(var(--c-band)); } .ds-band-unmeasured { border-right: 1px solid rgb(var(--c-ink-2) / 0.6); } .ds-hatch { background-image: repeating-linear-gradient(45deg, rgb(var(--c-ink-2) / 0.2) 0, rgb(var(--c-ink-2) / 0.2) 1px, transparent 1px, transparent 6px); } @media (prefers-reduced-motion: reduce) { .ds-reading-expand { transition-duration: 0.001ms; } }"
+    },
+    {
+      "name": "Sheet / Panel",
+      "kind": "card",
+      "refersTo": "sheet",
+      "description": "The only container in the system — a bordered block of chart stock with a pre-printed head. It never nests inside another one, and there are no cards.",
+      "html": "<section class=\"ds-sheet\"><div class=\"ds-sheet-head\"><h2 class=\"ds-sheet-title\">Totals</h2><p class=\"ds-sheet-desc\">Counts for the current view. Acceptable is this class alone — blank, failed and unchecked are counted separately below.</p></div><div class=\"ds-sheet-body\">Sheet body at 12px padding, or flush when the content is itself a grid.</div></section>",
+      "css": ".ds-sheet { border: 1px solid rgb(var(--c-rule-2)); border-radius: 0; background: rgb(var(--c-paper)); box-shadow: none; } .ds-sheet-head { border-bottom: 1px solid rgb(var(--c-rule-2)); background: rgb(var(--c-paper-3)); padding: 8px 12px; } .ds-sheet-title { margin: 0; font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.25; color: rgb(var(--c-ink)); } .ds-sheet-desc { margin: 4px 0 0; max-width: 68ch; font-family: Archivo, system-ui, sans-serif; font-size: 12px; line-height: 1.375; color: rgb(var(--c-ink-2)); } .ds-sheet-body { padding: 12px; font-family: Archivo, system-ui, sans-serif; font-size: 13px; color: rgb(var(--c-ink)); }"
+    },
+    {
+      "name": "Index Column Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "The navigation item of the index column. The active item is filled rather than edge-marked, because an inked field is how a printed form says 'this one'. Icons are always paired with a text label.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main\"><p class=\"ds-nav-group\">Main menu</p><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\" aria-current=\"page\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/></svg>Dashboard</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 7h-3a2 2 0 0 1-2-2V2\"/><path d=\"M21 6v6.5c0 .8-.7 1.5-1.5 1.5h-7c-.8 0-1.5-.7-1.5-1.5v-9c0-.8.7-1.5 1.5-1.5H17Z\"/><path d=\"M7 8v8.8c0 .3.2.6.4.8.2.2.5.4.8.4H15\"/><path d=\"M3 12v8.8c0 .3.2.6.4.8.2.2.5.4.8.4H11\"/></svg>Documents</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; width: 13.5rem; padding: 0 6px 12px; background: rgb(var(--c-paper-2)); border-right: 1px solid rgb(var(--c-rule-2)); } .ds-nav-group { margin: 0; padding: 12px 8px 4px; font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1; color: rgb(var(--c-ink-2)); } .ds-nav-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; padding: 6px 8px; font-family: Archivo, system-ui, sans-serif; font-size: 13px; color: rgb(var(--c-ink)); text-decoration: none; transition: background-color 150ms cubic-bezier(0.22,0.61,0.36,1); } .ds-nav-item:hover { background: rgb(var(--c-chart) / 0.07); } .ds-nav-item:focus-visible { outline: 2px solid rgb(var(--c-chart)); outline-offset: 2px; } .ds-nav-item-active { background: rgb(var(--c-chart)); color: rgb(var(--c-paper)); font-weight: 600; } .ds-nav-item-active:hover { background: rgb(var(--c-chart)); }"
+    },
+    {
+      "name": "Ruled Table",
+      "kind": "custom",
+      "refersTo": "table-cell",
+      "description": "Dense by intent — a records clerk works hundreds of rows a shift. Sticky pre-printed head, zebra rows on band stock, chart-blue washes for hover and for the row currently open elsewhere on screen.",
+      "html": "<table class=\"ds-table\"><thead><tr><th>Page</th><th>Class</th><th>Confidence</th></tr></thead><tbody><tr><td>MRN-004182 · p.3</td><td>Acceptable</td><td class=\"ds-num\">0.94</td></tr><tr><td>MRN-004182 · p.4</td><td>Needs review</td><td class=\"ds-num\">0.61</td></tr><tr aria-current=\"true\"><td>MRN-004183 · p.1</td><td>Rescan required</td><td class=\"ds-num\">0.22</td></tr></tbody></table>",
+      "css": ".ds-table { width: 100%; border-collapse: collapse; font-family: Archivo, system-ui, sans-serif; font-size: 13px; } .ds-table thead th { position: sticky; top: 0; z-index: 10; border-bottom: 1px solid rgb(var(--c-rule-2)); background: rgb(var(--c-paper-3)); padding: 6px 10px; text-align: left; vertical-align: bottom; font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: rgb(var(--c-ink-2)); } .ds-table td { border-bottom: 1px solid rgb(var(--c-rule)); padding: 6px 10px; vertical-align: top; color: rgb(var(--c-ink)); } .ds-table tbody tr:nth-child(even) { background: rgb(var(--c-paper-2)); } .ds-table tbody tr:hover { background: rgb(var(--c-chart) / 0.07); } .ds-table tbody tr[aria-current='true'] { background: rgb(var(--c-chart) / 0.12); } .ds-num { font-variant-numeric: tabular-nums lining-nums; }"
+    },
+    {
+      "name": "Plotting Indicator",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Work in progress drawn as a reading being plotted rather than a spinning disc. Under reduced motion the trace stops and the whole track stays hatched — the honest still picture of a value that has not arrived.",
+      "html": "<div class=\"ds-spinner\" role=\"status\"><span class=\"ds-spinner-track\" aria-hidden=\"true\"><span class=\"ds-spinner-trace ds-hatch\"></span></span>Loading…</div>",
+      "css": ".ds-spinner { display: flex; align-items: center; gap: 10px; padding: 20px 0; font-family: Archivo, system-ui, sans-serif; font-size: 13px; color: rgb(var(--c-ink-2)); } .ds-spinner-track { position: relative; display: block; height: 8px; width: 80px; overflow: hidden; border: 1px solid rgb(var(--c-rule)); background: rgb(var(--c-paper)); } .ds-spinner-trace { position: absolute; top: 0; bottom: 0; width: 33.333%; animation: ds-trace 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite; } .ds-hatch { background-image: repeating-linear-gradient(45deg, rgb(var(--c-ink-2) / 0.2) 0, rgb(var(--c-ink-2) / 0.2) 1px, transparent 1px, transparent 6px); } @keyframes ds-trace { 0% { transform: translateX(-110%); } 100% { transform: translateX(330%); } } @media (prefers-reduced-motion: reduce) { .ds-spinner-trace { animation: none; inset: 0; width: 100%; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Case Sheet",
+    "overview": "This interface is the ward chart the hospital already runs on, made into an instrument. A figure is never stated as a bare number when a scale exists to read it against: the count sits in lining tabular numerals at the left of a ruled row, the band is plotted at its right, and the reference marks that give the band meaning open in place when the row is touched. It refuses the admin-console arrangement — a number floating in a soft rounded card with a coloured delta and nothing said about what it was measured against — and it refuses it structurally, not by taste: there are no cards in this system, the radius scale tops out at 2px, and every shadow utility resolves to `none`.\n\nThe material is chart stock, hairline rules and two inks. Density is deliberate and unapologetic — a records clerk works hundreds of rows a shift, so the body size is 13px, table rows are 6px tall in padding, and a screen fits what a screen fits. That density is never paid for by a finger: under `pointer: coarse` every control grows to a 40px minimum, because intake happens on tablets at the ward and the front desk.\n\nThe one idea the whole system is arranged around is the difference between *nothing was found* and *nothing was established*. A failed check, an unconfigured provider and a queued page all report an absence of knowledge; `none_detected` and `not_found` report a finding. The first group is drawn with a 45° graphite hatch — the chart convention for a region that was never measured — and the hatch appears nowhere else in the system, on nothing decorative, ever.",
+    "keyCharacteristics": [
+      "Chart stock ground (#fbfaf6), hairline printed rules, two inks, no cards and no nesting",
+      "Every radius clamped to 2px; every box-shadow utility resolves to none",
+      "Colour only ever means status; chart blue is the single structural accent",
+      "Hatching is the one meaning-bearing texture and it means \"never measured\"",
+      "Archivo body, Archivo Narrow condensed caps for every pre-printed label; lining figures globally",
+      "One authored moment of motion, 150ms on a damped curve, collapsed to instant under reduced motion",
+      "Light and dark are the same eleven variables flipped by the OS; no dark: variant exists anywhere"
+    ],
+    "rules": [
+      {
+        "name": "The Status-Only Colour Rule",
+        "body": "Colour never means anything but status. `band`, `note` and `plot` appear only where a state is being reported; `chart` is the one structural accent and carries no verdict except `info`. Audit test: point at any coloured pixel and name the status it reports. If you cannot, it is a defect.",
+        "section": "colors"
+      },
+      {
+        "name": "The Enumerated Ink Rule",
+        "body": "The palette is eleven custom properties and adding a colour means adding one there. Anything that looks like a twelfth tone is a printed texture (a hatch, a tint of an existing ink at 7%/12%/22%), never a new hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Never-Alone Rule",
+        "body": "Colour is never the sole carrier of meaning. Every status ink ships with a drawn mark and a text label from `lib/status.ts`, so a stamp survives greyscale, any colour-vision profile, and a screen reader.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Theme, Two Values Rule",
+        "body": "There are no `dark:` variants in this application — a grep returns zero. The eleven variables flip under `prefers-color-scheme` and every utility follows. Dark is the same chart read on a light box. No in-app theme toggle exists; clinical workstations are centrally configured.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pre-Printed Label Rule",
+        "body": "Anything that names a box is set in Archivo Narrow, 11px, semibold, uppercase, 0.08em, in pencil grey. Anything written in the box is Archivo at 13px in writing ink. A label never borrows body type and a value never borrows label type.",
+        "section": "typography"
+      },
+      {
+        "name": "The Lining Figure Rule",
+        "body": "font-variant-numeric: lining-nums is set on html because this application is almost entirely numbers, and every figure that sits in a column also carries tabular-nums so digits line up between rows.",
+        "section": "typography"
+      },
+      {
+        "name": "The Device-Pixel Rule",
+        "body": "A printed rule is one device pixel, not one CSS pixel. --hair is 1px, and 0.5px above 2dppx; the chart grid and the hatch are drawn from it.",
+        "section": "layout"
+      },
+      {
+        "name": "The Rule-Not-Shadow Rule",
+        "body": "Ink on paper does not float. If two things need separating, draw a rule or change the tone of the stock. Never reach for a shadow; the utility will not render one anyway.",
+        "section": "elevation"
+      },
+      {
+        "name": "The 2px Ceiling",
+        "body": "No corner in this system exceeds 2px. There is no exception and no pill-shaped element.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Hatch-Means-Unmeasured Rule",
+        "body": "`.hatch` — 45° repeating pencil-grey lines at 20% on a 6px pitch — marks a region that was never measured, and nothing else. It is applied to a status stamp whose `unmeasured` flag is set, to a band with no value behind it, to a band whose known value describes something unmeasured, and to the stalled loading track. It is never decoration, and it is always paired with a text label so it is reinforcement rather than the signal. An empty result set is deliberately not hatched: the query ran and returned nothing, which is a finding.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Grid-Means-Scale Rule",
+        "body": "`.chart-grid` — an 8px printed measuring grid at --hair — appears only on a region that actually plots a value against a scale. Two sites in the build use it, both bands. It is never page decoration.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Single Moment Rule",
+        "body": "There is one authored motion in this application: `.trace`, the loading indicator. Everything else that moves is a 150ms ease-chart (cubic-bezier(0.22, 0.61, 0.36, 1)) colour transition or the band-expand grid-row collapse — damped, single-axis, no overshoot, nothing self-animating. prefers-reduced-motion collapses every animation and transition to 0.001ms and stops the trace.",
+        "section": "components"
+      },
+      {
+        "name": "The One Wording Rule",
+        "body": "A screen never hand-writes a label for a status that has a canonical one. `lib/status.ts` owns every label, tone, icon, qualifier and `unmeasured` flag, so a distinction that matters can only be got wrong in one place.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do plot a figure against the band it was measured against. If a scale exists, the number does not appear alone.",
+      "Do hatch anything whose status carries `unmeasured`, and pair the hatch with a text label — it is reinforcement, never the signal.",
+      "Do take every status label, tone, icon and qualifier from `lib/status.ts`, and render a qualifier visibly beside the label rather than in a `title`.",
+      "Do separate things with a rule (`rule` hairline, `rule-2` structural) or a change of stock tone (`paper` / `paper-2` / `paper-3`).",
+      "Do set anything that names a box in Archivo Narrow 11px semibold uppercase at 0.08em in pencil grey, and anything written in a box in Archivo 13px in writing ink.",
+      "Do give every figure in a column `tabular-nums`.",
+      "Do add new colour by adding a variable in `index.css` — both the light block and the `prefers-color-scheme: dark` block — so the set stays enumerable.",
+      "Do keep the dense layout and let `pointer: coarse` pay for touch (40px minimum control height, 1.15rem checkboxes)."
+    ],
+    "donts": [
+      "Don't colour anything that is not a status. `band`, `note` and `plot` are verdict inks; `chart` is the one structural accent.",
+      "Don't write a `dark:` variant. There are none in the application; flip the custom properties instead and every utility follows.",
+      "Don't use `.hatch` as texture or `.chart-grid` as page decoration. The first means \"never measured\"; the second means \"this region plots a value against a scale\".",
+      "Don't reach for a shadow or an elevation. Every shadow utility resolves to `none`.",
+      "Don't exceed a 2px corner, and don't build a pill — `rounded-full` appears nowhere in the built application.",
+      "Don't nest a `.sheet` inside a `.sheet`, or introduce a card.",
+      "Don't hatch an empty result set. The query ran and returned nothing; that is a finding, and it gets the dashed empty field instead.",
+      "Don't shade an invented target band or draw a detent from a value the API did not supply.",
+      "Don't add a second moving part. `.trace` is the loading indicator and the only animation; everything else is 150ms `ease-chart`.",
+      "Don't put meaning behind a hover-only tooltip — intake and ward staff work on touch devices where no tooltip exists.",
+      "Don't invent a hospital name or logo. Identity surfaces carry the bordered `ScanLine` placeholder until the assets are supplied."
+    ]
+  }
+}

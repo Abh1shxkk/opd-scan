@@ -8,10 +8,36 @@
  *    NEVER "No handwriting". The two mean opposite things to a records clerk.
  *  - `blank`, `failed` and `unchecked` pages have their own tone and are never given the
  *    "acceptable" colour, so a glance at a list cannot read them as passed.
- *  - every tone is paired with a `label` and an `icon` glyph, so colour is never the only carrier
+ *  - every tone is paired with a `label` and a drawn `icon`, so colour is never the only carrier
  *    of meaning (WCAG 1.4.1).
+ *  - `unmeasured` separates "we did not establish anything" from "we established there is
+ *    nothing", and the interface hatches the first group so the two cannot be confused.
  *  - a confidence that the API did not supply returns `null` and the caller renders nothing.
  */
+
+import type { LucideIcon } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Ban,
+  Check,
+  CircleAlert,
+  CircleDashed,
+  CircleDot,
+  CircleQuestionMark,
+  CircleX,
+  Clock,
+  Copy,
+  Dot,
+  Ellipsis,
+  Lock,
+  Minus,
+  OctagonAlert,
+  PenLine,
+  RefreshCw,
+  Settings2,
+  Square,
+  TriangleAlert,
+} from 'lucide-react';
 
 import type {
   CompletenessStatus,
@@ -26,44 +52,67 @@ import type {
   Severity,
 } from './types';
 
-/** Tone drives the pill palette only. The label always carries the meaning. */
+/** Tone drives the status ink only. The label always carries the meaning. */
 export type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'neutral';
 
 export interface StatusView {
   label: string;
   tone: Tone;
-  /** A text glyph shown before the label so the status survives greyscale and colour blindness. */
-  icon: string;
+  /** A drawn mark shown before the label so the status survives greyscale and colour blindness. */
+  icon: LucideIcon;
   /** Optional second line explaining a non-obvious state. */
   detail?: string;
+  /**
+   * A short, visible reason shown beside the label.
+   *
+   * Two statuses deliberately share the label "Handwriting not checked" — a failed check and an
+   * unconfigured provider — because that wording is fixed product truth. The qualifier is what
+   * separates them on screen. It is rendered, not hidden in a `title`: a tooltip does not exist on
+   * a touch device, and intake and ward staff work on tablets.
+   */
+  qualifier?: string;
+  /**
+   * True when this status means "nothing was established" rather than "nothing is there".
+   *
+   * The distinction is the whole point of this file: a failed check, an unconfigured provider and
+   * a queued page all report an *absence of knowledge*, while `none_detected`, `not_found` and
+   * `not_a_prescription` report a *finding*. The interface draws the first group with hatching —
+   * the chart convention for a region that was never measured — so the two can never be read as
+   * the same thing at a glance.
+   */
+  unmeasured?: boolean;
 }
 
 // ------------------------------------------------------------- page class
 
 const PAGE_CLASS: Record<PageClass, StatusView> = {
-  acceptable: { label: 'Acceptable', tone: 'ok', icon: '✓' },
-  review: { label: 'Needs review', tone: 'warn', icon: '!' },
-  rescan: { label: 'Rescan required', tone: 'bad', icon: '✕' },
+  acceptable: { label: 'Acceptable', tone: 'ok', icon: Check },
+  review: { label: 'Needs review', tone: 'warn', icon: CircleAlert },
+  rescan: { label: 'Rescan required', tone: 'bad', icon: CircleX },
   // Blank is NOT a defect and NOT acceptable: a blank facing page in a bound case file is often
   // deliberate, so it gets a neutral tone of its own and a wording that invites a human check.
   blank: {
     label: 'Blank page',
     tone: 'neutral',
-    icon: '□',
+    icon: Square,
     detail: 'Its own class — neither a defect nor an accepted page.',
   },
   // A page that could not be measured is never "acceptable".
   failed: {
     label: 'Quality check failed',
     tone: 'bad',
-    icon: '⚠',
+    icon: TriangleAlert,
     detail: 'The page could not be measured, so nothing is known about its quality.',
+    qualifier: 'could not be measured',
+    unmeasured: true,
   },
   unchecked: {
     label: 'Not checked',
     tone: 'neutral',
-    icon: '–',
+    icon: Minus,
     detail: 'No quality result has been recorded for this page yet.',
+    qualifier: 'not yet run',
+    unmeasured: true,
   },
 };
 
@@ -94,26 +143,32 @@ export const NEEDS_ATTENTION_CLASSES: PageClass[] = ['review', 'rescan', 'failed
 // ----------------------------------------------------------- handwriting
 
 const HANDWRITING: Record<HandwritingStatus, StatusView> = {
-  detected: { label: 'Handwriting detected', tone: 'info', icon: '✍' },
+  detected: { label: 'Handwriting detected', tone: 'info', icon: PenLine },
   // The only status that may say there is none.
-  none_detected: { label: 'No handwriting detected', tone: 'neutral', icon: '–' },
+  none_detected: { label: 'No handwriting detected', tone: 'neutral', icon: Minus },
   failed: {
     label: 'Handwriting not checked',
     tone: 'warn',
-    icon: '⚠',
+    icon: TriangleAlert,
     detail: 'The handwriting check failed on this page. Nothing is known either way.',
+    qualifier: 'check failed',
+    unmeasured: true,
   },
   unconfigured: {
     label: 'Handwriting not checked',
     tone: 'warn',
-    icon: '⚙',
+    icon: Settings2,
     detail: 'No handwriting provider is configured, so this page was never examined.',
+    qualifier: 'no provider configured',
+    unmeasured: true,
   },
   pending: {
     label: 'Handwriting check pending',
     tone: 'neutral',
-    icon: '⋯',
+    icon: Ellipsis,
     detail: 'Queued — not examined yet.',
+    qualifier: 'queued',
+    unmeasured: true,
   },
 };
 
@@ -165,40 +220,52 @@ const DIAGNOSIS: Record<DiagnosisStatus, StatusView> = {
   extracted_pending_review: {
     label: 'Extracted — awaiting review',
     tone: 'warn',
-    icon: '⋯',
+    icon: Ellipsis,
     detail: 'An AI transcription that no clinician has confirmed yet.',
   },
   not_found: {
     label: 'No diagnosis found',
     tone: 'neutral',
-    icon: '–',
+    icon: Minus,
     detail: 'No diagnosis label was read on this page. This is not a failure.',
   },
   unreadable: {
     label: 'Not readable',
     tone: 'bad',
-    icon: '✕',
+    icon: CircleX,
     detail: 'The transcription was not confidently readable, so no text is presented. Read the image.',
+    qualifier: 'not legible',
+    unmeasured: true,
   },
   uncertain: {
     label: 'Uncertain transcription',
     tone: 'warn',
-    icon: '?',
+    icon: CircleQuestionMark,
     detail: 'Low provider confidence. Confirm against the image before use.',
   },
   processing_failed: {
     label: 'Extraction failed',
     tone: 'bad',
-    icon: '⚠',
+    icon: TriangleAlert,
     detail: 'The extraction did not complete. Nothing was read from this page.',
+    qualifier: 'extraction failed',
+    unmeasured: true,
   },
   unconfigured: {
     label: 'Extraction not configured',
     tone: 'warn',
-    icon: '⚙',
+    icon: Settings2,
     detail: 'No diagnosis provider is configured, so this page was never examined.',
+    qualifier: 'no provider configured',
+    unmeasured: true,
   },
-  pending: { label: 'Extraction pending', tone: 'neutral', icon: '⋯' },
+  pending: {
+    label: 'Extraction pending',
+    tone: 'neutral',
+    icon: Ellipsis,
+    qualifier: 'queued',
+    unmeasured: true,
+  },
 };
 
 // ----------------------------------------------------------- prescription
@@ -207,34 +274,46 @@ const PRESCRIPTION: Record<PrescriptionStatus, StatusView> = {
   extracted_pending_review: {
     label: 'Read — awaiting confirmation',
     tone: 'warn',
-    icon: '⋯',
+    icon: Ellipsis,
     detail: 'An AI reading of the prescription that no doctor or pharmacist has confirmed yet.',
   },
   not_a_prescription: {
     label: 'No prescription found',
     tone: 'neutral',
-    icon: '–',
+    icon: Minus,
     detail: 'This page does not appear to carry a medicine list.',
   },
   unreadable: {
     label: 'Not readable',
     tone: 'bad',
-    icon: '✕',
+    icon: CircleX,
     detail: 'The handwriting was not confidently readable, so no medicines are presented. Read the image.',
+    qualifier: 'not legible',
+    unmeasured: true,
   },
   processing_failed: {
     label: 'Analysis failed',
     tone: 'bad',
-    icon: '⚠',
+    icon: TriangleAlert,
     detail: 'The analysis did not complete. Nothing was read from this page.',
+    qualifier: 'analysis failed',
+    unmeasured: true,
   },
   unconfigured: {
     label: 'Not configured',
     tone: 'warn',
-    icon: '⚙',
+    icon: Settings2,
     detail: 'No prescription-reading provider is configured, so this page was never examined.',
+    qualifier: 'no provider configured',
+    unmeasured: true,
   },
-  pending: { label: 'Not yet analysed', tone: 'neutral', icon: '⋯' },
+  pending: {
+    label: 'Not yet analysed',
+    tone: 'neutral',
+    icon: Ellipsis,
+    qualifier: 'queued',
+    unmeasured: true,
+  },
 };
 
 export function prescriptionView(s: PrescriptionStatus | null | undefined): StatusView {
@@ -270,48 +349,50 @@ export const DIAGNOSIS_ORDER: DiagnosisStatus[] = [
  * historical diagnosis must not read as a confirmed current one.
  */
 const QUALIFIER: Record<Qualifier, StatusView> = {
-  final: { label: 'Final', tone: 'ok', icon: '●', detail: 'Recorded as a final diagnosis.' },
+  final: { label: 'Final', tone: 'ok', icon: CircleDot, detail: 'Recorded as a final diagnosis.' },
   provisional: {
     label: 'Provisional',
     tone: 'warn',
-    icon: '◐',
+    icon: CircleDashed,
     detail: 'Recorded as provisional — not a confirmed diagnosis.',
   },
   suspected: {
     label: 'Suspected',
     tone: 'warn',
-    icon: '?',
+    icon: CircleQuestionMark,
     detail: 'Recorded as suspected — not a confirmed diagnosis.',
   },
   differential: {
     label: 'Differential',
     tone: 'info',
-    icon: '⇄',
+    icon: ArrowLeftRight,
     detail: 'One of several possibilities being considered.',
   },
   ruled_out: {
     label: 'Ruled out',
     tone: 'bad',
-    icon: '⊘',
+    icon: Ban,
     detail: 'Explicitly ruled out. This condition was NOT diagnosed.',
   },
   negated: {
     label: 'Negated',
     tone: 'bad',
-    icon: '⊘',
+    icon: Ban,
     detail: 'Written in the negative. This condition was NOT diagnosed.',
   },
   past_history: {
     label: 'Past history',
     tone: 'info',
-    icon: '⏱',
+    icon: Clock,
     detail: 'A historical condition, not the diagnosis for this encounter.',
   },
   unspecified: {
     label: 'Qualifier unspecified',
     tone: 'neutral',
-    icon: '–',
+    icon: Minus,
     detail: 'The record does not say whether this is final, provisional or otherwise.',
+    qualifier: 'not stated on the page',
+    unmeasured: true,
   },
 };
 
@@ -334,9 +415,9 @@ export const QUALIFIERS: Qualifier[] = [
 // ---------------------------------------------------------------- misc
 
 const SEVERITY: Record<Severity, StatusView> = {
-  low: { label: 'Low severity', tone: 'neutral', icon: '·' },
-  medium: { label: 'Medium severity', tone: 'warn', icon: '!' },
-  high: { label: 'High severity', tone: 'bad', icon: '!!' },
+  low: { label: 'Low severity', tone: 'neutral', icon: Dot },
+  medium: { label: 'Medium severity', tone: 'warn', icon: CircleAlert },
+  high: { label: 'High severity', tone: 'bad', icon: OctagonAlert },
 };
 
 export function severityView(s: Severity): StatusView {
@@ -344,9 +425,9 @@ export function severityView(s: Severity): StatusView {
 }
 
 const REVIEW_STATE: Record<ReviewState, StatusView> = {
-  pending: { label: 'Awaiting review', tone: 'warn', icon: '⋯' },
-  accepted: { label: 'Accepted', tone: 'ok', icon: '✓' },
-  rescan_requested: { label: 'Rescan requested', tone: 'bad', icon: '↻' },
+  pending: { label: 'Awaiting review', tone: 'warn', icon: Ellipsis },
+  accepted: { label: 'Accepted', tone: 'ok', icon: Check },
+  rescan_requested: { label: 'Rescan requested', tone: 'bad', icon: RefreshCw },
 };
 
 export function reviewStateView(s: ReviewState | null | undefined): StatusView {
@@ -357,20 +438,20 @@ export function reviewStateView(s: ReviewState | null | undefined): StatusView {
 export const REVIEW_STATES: ReviewState[] = ['pending', 'accepted', 'rescan_requested'];
 
 const INGEST: Record<IngestStatus, StatusView> = {
-  pending: { label: 'Queued', tone: 'neutral', icon: '⋯' },
-  running: { label: 'Processing', tone: 'info', icon: '↻' },
-  completed: { label: 'Ingested', tone: 'ok', icon: '✓' },
-  failed: { label: 'Ingest failed', tone: 'bad', icon: '⚠' },
-  rejected: { label: 'Rejected', tone: 'bad', icon: '✕' },
-  password_protected: { label: 'Password protected', tone: 'bad', icon: '🔒' },
-  corrupted: { label: 'Corrupted file', tone: 'bad', icon: '✕' },
+  pending: { label: 'Queued', tone: 'neutral', icon: Ellipsis },
+  running: { label: 'Processing', tone: 'info', icon: RefreshCw },
+  completed: { label: 'Ingested', tone: 'ok', icon: Check },
+  failed: { label: 'Ingest failed', tone: 'bad', icon: TriangleAlert },
+  rejected: { label: 'Rejected', tone: 'bad', icon: CircleX },
+  password_protected: { label: 'Password protected', tone: 'bad', icon: Lock },
+  corrupted: { label: 'Corrupted file', tone: 'bad', icon: CircleX },
 };
 
 export function ingestView(
   s: IngestStatus | 'accepted' | 'rejected' | 'duplicate' | null | undefined,
 ): StatusView {
   if (!s) return INGEST.pending;
-  if (s === 'accepted') return { label: 'Accepted', tone: 'ok', icon: '✓' };
+  if (s === 'accepted') return { label: 'Accepted', tone: 'ok', icon: Check };
   // A duplicate is its own outcome and gets its own wording: the file was recognised and
   // deliberately not stored again. Reading it as "Queued" would tell a clerk to wait for
   // processing that is never going to happen, and reading it as "Accepted" would claim a second
@@ -379,7 +460,7 @@ export function ingestView(
     return {
       label: 'Already uploaded',
       tone: 'warn',
-      icon: '⧉',
+      icon: Copy,
       detail: 'An identical file was already stored, so this one was not added again.',
     };
   }
@@ -387,11 +468,11 @@ export function ingestView(
 }
 
 const JOB: Record<JobState, StatusView> = {
-  queued: { label: 'Queued', tone: 'neutral', icon: '⋯' },
-  running: { label: 'Running', tone: 'info', icon: '↻' },
-  succeeded: { label: 'Succeeded', tone: 'ok', icon: '✓' },
-  failed: { label: 'Failed', tone: 'bad', icon: '⚠' },
-  cancelled: { label: 'Cancelled', tone: 'neutral', icon: '⊘' },
+  queued: { label: 'Queued', tone: 'neutral', icon: Ellipsis },
+  running: { label: 'Running', tone: 'info', icon: RefreshCw },
+  succeeded: { label: 'Succeeded', tone: 'ok', icon: Check },
+  failed: { label: 'Failed', tone: 'bad', icon: TriangleAlert },
+  cancelled: { label: 'Cancelled', tone: 'neutral', icon: Ban },
 };
 
 export function jobView(s: JobState): StatusView {
@@ -401,14 +482,16 @@ export function jobView(s: JobState): StatusView {
 // ------------------------------------------------------------ completeness
 
 const COMPLETENESS: Record<CompletenessStatus, StatusView> = {
-  verified: { label: 'Complete', tone: 'ok', icon: '✓' },
-  incomplete: { label: 'Incomplete', tone: 'bad', icon: '✕' },
+  verified: { label: 'Complete', tone: 'ok', icon: Check },
+  incomplete: { label: 'Incomplete', tone: 'bad', icon: CircleX },
   // Required exact wording: no checklist means nothing was verified, not that anything is wrong.
   not_verified: {
     label: 'Completeness not verified',
     tone: 'neutral',
-    icon: '–',
+    icon: Minus,
     detail: 'No checklist is attached to this case, so completeness was never assessed.',
+    qualifier: 'no checklist attached',
+    unmeasured: true,
   },
 };
 

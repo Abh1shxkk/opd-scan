@@ -21,8 +21,15 @@ import { Modal } from './Modal';
 import { StatusPill } from './StatusPill';
 import { useToast } from './Toast';
 import { Button, TextArea } from './ui';
+import { TriangleAlert } from 'lucide-react';
 
-export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAnalysisPage; multi: boolean }) {
+export function PrescriptionPageDetails({
+  page,
+  multi,
+}: {
+  page: PrescriptionAnalysisPage;
+  multi: boolean;
+}) {
   const { can } = useAuth();
   const toast = useToast();
   const [correcting, setCorrecting] = useState(false);
@@ -37,29 +44,31 @@ export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAna
       }),
     onSuccess: () => {
       setCorrecting(false);
-      toast.push('Correction recorded. It will be used as a lesson for future readings.', 'success');
+      toast.push(
+        'Correction recorded. It will be used as a lesson for future readings.',
+        'success',
+      );
     },
-    onError: (e) => toast.push(e instanceof Error ? e.message : 'The correction could not be saved.', 'error'),
+    onError: (e) =>
+      toast.push(e instanceof Error ? e.message : 'The correction could not be saved.', 'error'),
   });
 
   const canCorrect = can('reviewer') && Boolean(p) && !p?.error;
 
   return (
-    <div className={multi ? 'border-t border-slate-200 pt-4 first:border-t-0 first:pt-0 dark:border-slate-800' : ''}>
-      {multi ? (
-        <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">Page {page.ordinal}</h3>
-      ) : null}
+    <div className={multi ? 'border-t border-rule pt-4 first:border-t-0 first:pt-0 ' : ''}>
+      {multi ? <h3 className="mb-2 text-[13px] font-semibold text-ink">Page {page.ordinal}</h3> : null}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <StatusPill view={prescriptionView(p?.status)} showDetail />
         {p?.language_detected ? (
-          <span className="text-xs text-slate-600 dark:text-slate-400">Language: {p.language_detected}</span>
+          <span className="text-[11px] text-ink-2">Language: {p.language_detected}</span>
         ) : null}
         {canCorrect ? (
           <button
             type="button"
             onClick={() => setCorrecting(true)}
-            className="ml-auto text-xs font-medium text-sky-800 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:text-sky-300"
+            className="ml-auto text-[11px] font-medium text-chart underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             Correct this reading
           </button>
@@ -67,21 +76,21 @@ export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAna
       </div>
 
       {!p ? (
-        <p className="text-sm text-slate-700 dark:text-slate-300">No result for this page.</p>
+        <p className="text-[13px] text-ink-2">No result for this page.</p>
       ) : p.error ? (
-        <p className="text-sm text-red-800 dark:text-red-300">{p.error}</p>
+        <p className="text-[13px] text-plot">{p.error}</p>
       ) : (
         <div className="space-y-4">
           {p.requires_professional_confirmation ? (
-            <p className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-50">
-              <span aria-hidden="true">⚠ </span>
-              This reading has parts that are uncertain. Confirm every medicine, dose and instruction
-              with the prescribing doctor or a pharmacist before acting on it.
+            <p className="rounded border border-note/50 bg-note/[0.07] px-3 py-2 text-[13px] text-ink">
+              <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
+              This reading has parts that are uncertain. Confirm every medicine, dose and
+              instruction with the prescribing doctor or a pharmacist before acting on it.
             </p>
           ) : null}
 
           {p.safety_warnings.length > 0 ? (
-            <ul className="list-disc space-y-0.5 pl-5 text-sm text-red-800 dark:text-red-300">
+            <ul className="list-disc space-y-0.5 pl-5 text-[13px] text-plot">
               {p.safety_warnings.map((w, i) => (
                 <li key={i}>{w}</li>
               ))}
@@ -90,63 +99,72 @@ export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAna
 
           {p.medicines.length > 0 ? (
             <div>
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Medicines</h4>
+              <h4 className="text-[13px] font-semibold text-ink">Medicines</h4>
               <ul className="mt-1 space-y-2">
                 {p.medicines.map((m, i) => (
-                  <li key={i} className="rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+                  <li key={i} className="border-b border-rule px-2 py-2 last:border-b-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      <span className="text-[13px] font-medium text-ink">
                         {m.name || 'Unreadable name'}
                       </span>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        className={`rounded px-2 py-0.5 text-[11px] font-medium ${
                           m.confidence === 'high'
-                            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100'
+                            ? 'bg-band/[0.07] text-ink '
                             : m.confidence === 'medium'
-                              ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100'
-                              : 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100'
+                              ? 'bg-note/[0.07] text-ink '
+                              : 'bg-plot/[0.07] text-ink '
                         }`}
                       >
                         {MEDICINE_CONFIDENCE_LABEL[m.confidence] ?? m.confidence}
                       </span>
                     </div>
-                    <dl className="mt-1 grid grid-cols-3 gap-2 text-xs text-slate-700 dark:text-slate-300">
-                      <div><dt className="text-slate-500 dark:text-slate-400">Dose</dt><dd>{m.dose || '—'}</dd></div>
-                      <div><dt className="text-slate-500 dark:text-slate-400">Frequency</dt><dd>{m.frequency || '—'}</dd></div>
-                      <div><dt className="text-slate-500 dark:text-slate-400">Duration</dt><dd>{m.duration || '—'}</dd></div>
+                    <dl className="mt-1 grid grid-cols-3 gap-2 text-[11px] text-ink-2">
+                      <div>
+                        <dt className="text-ink-2">Dose</dt>
+                        <dd>{m.dose || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-ink-2">Frequency</dt>
+                        <dd>{m.frequency || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-ink-2">Duration</dt>
+                        <dd>{m.duration || '—'}</dd>
+                      </div>
                     </dl>
                     {m.general_use ? (
-                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Generally used for: {m.general_use}</p>
+                      <p className="mt-1 text-[11px] text-ink-2">Generally used for: {m.general_use}</p>
                     ) : null}
                     {m.uncertainty ? (
-                      <p className="mt-1 text-xs italic text-amber-800 dark:text-amber-300">Uncertain: {m.uncertainty}</p>
+                      <p className="mt-1 text-[11px] italic text-note">Uncertain: {m.uncertainty}</p>
                     ) : null}
                   </li>
                 ))}
               </ul>
             </div>
           ) : p.status === 'extracted_pending_review' ? (
-            <p className="text-sm text-slate-700 dark:text-slate-300">No medicines were read on this page.</p>
+            <p className="text-[13px] text-ink-2">No medicines were read on this page.</p>
           ) : null}
 
           {p.possible_interpretation ? (
             <div>
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Possible interpretation</h4>
-              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{p.possible_interpretation}</p>
+              <h4 className="text-[13px] font-semibold text-ink">Possible interpretation</h4>
+              <p className="mt-1 text-[13px] text-ink">{p.possible_interpretation}</p>
             </div>
           ) : null}
 
           {p.patient_explanation ? (
             <div>
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">In plain language</h4>
-              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{p.patient_explanation}</p>
+              <h4 className="text-[13px] font-semibold text-ink">In plain language</h4>
+              <p className="mt-1 text-[13px] text-ink">{p.patient_explanation}</p>
             </div>
           ) : null}
 
           {p.uncertainties.length > 0 ? (
             <div>
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Unclear or unreadable</h4>
-              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-slate-700 dark:text-slate-300">
+              <h4 className="text-[13px] font-semibold text-ink">Unclear or unreadable</h4>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[13px] text-ink-2">
                 {p.uncertainties.map((u, i) => (
                   <li key={i}>{u}</li>
                 ))}
@@ -154,17 +172,17 @@ export function PrescriptionPageDetails({ page, multi }: { page: PrescriptionAna
             </div>
           ) : null}
 
-          <details className="text-sm">
-            <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-300">
+          <details className="text-[13px]">
+            <summary className="cursor-pointer font-medium text-ink-2">
               Raw OCR text (exact, unedited)
             </summary>
             <RawOcrText text={p.raw_extracted_text} />
           </details>
 
-          <p className="border-t border-slate-200 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400">
-            This reading is AI-generated and may contain errors, especially for handwriting. It is not
-            a diagnosis and does not replace advice from the prescribing doctor or a pharmacist. Never
-            start, stop, or change a medication based only on this reading.
+          <p className="border-t border-rule pt-3 text-[11px] text-ink-2">
+            This reading is AI-generated and may contain errors, especially for handwriting. It is
+            not a diagnosis and does not replace advice from the prescribing doctor or a pharmacist.
+            Never start, stop, or change a medication based only on this reading.
           </p>
         </div>
       )}
@@ -224,20 +242,18 @@ function CorrectPrescriptionDialog({
       }
     >
       <fieldset className="mb-3">
-        <legend className="mb-1 text-xs font-medium text-slate-800 dark:text-slate-200">
-          What is wrong with it?
-        </legend>
+        <legend className="mb-1 text-[11px] font-medium text-ink">What is wrong with it?</legend>
         {CORRECTION_CATEGORIES.map(([value, label]) => (
-          <label key={value} className="flex items-start gap-2 py-0.5 text-sm">
+          <label key={value} className="flex items-start gap-2 py-0.5 text-[13px]">
             <input
               type="radio"
               name="category"
               value={value}
               checked={category === value}
               onChange={() => setCategory(value)}
-              className="mt-0.5 h-4 w-4 border-slate-500 text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+              className="mt-0.5 h-4 w-4 border-rule-2 text-chart focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             />
-            <span className="text-slate-900 dark:text-slate-100">{label}</span>
+            <span className="text-ink">{label}</span>
           </label>
         ))}
       </fieldset>
@@ -264,25 +280,25 @@ function RawOcrText({ text }: { text: string }) {
   const lines = text.split('\n').filter((line) => line.trim().length > 0);
 
   if (lines.length === 0) {
-    return <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">(no text was transcribed)</p>;
+    return <p className="mt-1 text-[11px] text-ink-2">(no text was transcribed)</p>;
   }
 
   return (
-    <div className="mt-1 max-h-96 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
-      <dl className="divide-y divide-slate-100 dark:divide-slate-800/60">
+    <div className="mt-1 max-h-96 overflow-y-auto border-y border-rule">
+      <dl className="divide-y divide-rule">
         {lines.map((line, i) => {
           const m = /^([^:]{1,40}):\s*(.+)$/.exec(line);
           return (
-            <div key={i} className="flex flex-wrap gap-x-2 px-2.5 py-1.5 odd:bg-slate-50 dark:odd:bg-slate-900/40">
+            <div key={i} className="flex flex-wrap gap-x-2 px-2.5 py-1.5 odd:bg-paper-2">
               {m ? (
                 <>
-                  <dt className="w-32 shrink-0 font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <dt className="w-32 shrink-0 font-mono text-[11px] font-semibold text-ink-2">
                     {m[1]}
                   </dt>
-                  <dd className="min-w-0 flex-1 font-mono text-xs text-slate-900 dark:text-slate-100">{m[2]}</dd>
+                  <dd className="min-w-0 flex-1 font-mono text-[11px] text-ink">{m[2]}</dd>
                 </>
               ) : (
-                <dd className="min-w-0 flex-1 font-mono text-xs text-slate-900 dark:text-slate-100">{line}</dd>
+                <dd className="min-w-0 flex-1 font-mono text-[11px] text-ink">{line}</dd>
               )}
             </div>
           );

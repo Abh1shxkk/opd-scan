@@ -20,7 +20,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { formatBytes } from '../lib/status';
 import type { IntakeFormValues, IntakeResponse, UploadResultRow } from '../lib/types';
-import { Panel } from '../components/StatTile';
+import { Panel } from '../components/Sheet';
 import { useToast } from '../components/Toast';
 import { Button, ErrorState, Select, TextInput } from '../components/ui';
 
@@ -127,9 +127,9 @@ export default function PatientIntakePage() {
 
   return (
     <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">New file upload</h1>
-        <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+      <header className="rule-double pb-2">
+        <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-ink">New file upload</h1>
+        <p className="mt-1 text-[13px] text-ink-2">
           Enter the patient’s details and attach their documents. Everything uploaded here is
           scanned and quality-checked automatically.
         </p>
@@ -151,8 +151,8 @@ export default function PatientIntakePage() {
             <TextInput label="Uploader name" value={user?.full_name || user?.email || ''} readOnly disabled />
 
             <div>
-              <label className="block text-sm font-medium text-slate-800 dark:text-slate-200" htmlFor="mr">
-                MR number <span className="text-red-700 dark:text-red-400">*</span>
+              <label className="field-label block" htmlFor="mr">
+                MR number <span className="text-plot">*</span>
               </label>
               <div className="mt-1 flex gap-1.5">
                 <input
@@ -161,7 +161,7 @@ export default function PatientIntakePage() {
                   onChange={(e) => set('mr_number', e.target.value)}
                   placeholder="Enter MR number"
                   required
-                  className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  className="min-w-0 flex-1 border border-rule-2 bg-paper px-2 py-1.5 text-[13px] text-ink placeholder:text-ink-2/70"
                 />
                 <Button
                   type="button"
@@ -173,7 +173,7 @@ export default function PatientIntakePage() {
                   {lookup.isPending ? '…' : 'Find'}
                 </Button>
               </div>
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+              <p className="mt-1 text-[11px] text-ink-2">
                 Find fills in details from the last visit. Always check them.
               </p>
             </div>
@@ -279,23 +279,23 @@ export default function PatientIntakePage() {
             multiple
             accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.webp"
             onChange={(e) => pickFiles(e.target.files)}
-            className="block w-full cursor-pointer text-sm file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-sky-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:file:bg-sky-600"
+            className="block w-full cursor-pointer text-[13px] file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-chart file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-paper hover:file:bg-chart/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           />
           {files.length > 0 ? (
-            <ul className="mt-3 divide-y divide-slate-200 text-sm dark:divide-slate-800">
+            <ul className="mt-3 divide-y divide-rule text-[13px]">
               {files.map((f) => (
                 <li key={f.name} className="flex items-center justify-between gap-3 py-1.5">
-                  <span className="truncate text-slate-800 dark:text-slate-200">{f.name}</span>
-                  <span className="shrink-0 text-xs text-slate-600 dark:text-slate-400">{formatBytes(f.size)}</span>
+                  <span className="truncate text-ink">{f.name}</span>
+                  <span className="shrink-0 text-[11px] text-ink-2">{formatBytes(f.size)}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
+            <p className="mt-3 text-[13px] text-ink-2">
               No files chosen. The record can be saved without documents and files added later.
             </p>
           )}
-          <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+          <p className="mt-2 text-[11px] text-ink-2">
             Maximum {formatBytes(CLIENT_MAX_BYTES)} per file.
           </p>
         </Panel>
@@ -305,12 +305,12 @@ export default function PatientIntakePage() {
             {submit.isPending ? 'Saving…' : 'Save record'}
           </Button>
           {submit.isPending ? (
-            <span className="text-xs text-slate-600 dark:text-slate-400">
+            <span className="text-[11px] text-ink-2">
               {progress < 1 ? `Uploading… ${Math.round(progress * 100)}%` : 'Saving and queueing for scan…'}
             </span>
           ) : null}
           {!form.mr_number.trim() ? (
-            <span className="text-xs text-slate-600 dark:text-slate-400">An MR number is required.</span>
+            <span className="text-[11px] text-ink-2">An MR number is required.</span>
           ) : null}
         </div>
       </form>
@@ -324,7 +324,7 @@ function IntakeResult({ result, onOpen }: { result: IntakeResponse; onOpen: (cas
   const c = result.case;
   return (
     <Panel title="Saved" description={`MR ${c.patient_ref}${c.encounter_ref !== c.patient_ref ? ` · IPD ${c.encounter_ref}` : ''}`}>
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4">
         <Field label="Patient" value={c.patient_name} />
         <Field label="Department" value={c.department} />
         <Field label="Consultant" value={c.consultant_name} />
@@ -332,7 +332,7 @@ function IntakeResult({ result, onOpen }: { result: IntakeResponse; onOpen: (cas
       </dl>
 
       {result.documents.length > 0 ? (
-        <ul className="mt-3 divide-y divide-slate-200 text-sm dark:divide-slate-800">
+        <ul className="mt-3 divide-y divide-rule text-[13px]">
           {result.documents.map((d, i) => (
             <DocumentRow key={`${d.filename}-${i}`} row={d} />
           ))}
@@ -351,18 +351,18 @@ function IntakeResult({ result, onOpen }: { result: IntakeResponse; onOpen: (cas
 function DocumentRow({ row }: { row: UploadResultRow }) {
   const tone =
     row.status === 'rejected'
-      ? 'text-red-800 dark:text-red-300'
+      ? 'text-plot '
       : row.status === 'duplicate'
-        ? 'text-amber-800 dark:text-amber-300'
-        : 'text-emerald-800 dark:text-emerald-300';
+        ? 'text-note '
+        : 'text-band ';
   return (
     <li className="py-1.5">
       <div className="flex items-center justify-between gap-3">
-        <span className="truncate text-slate-800 dark:text-slate-200">{row.filename}</span>
-        <span className={`shrink-0 text-xs font-medium ${tone}`}>{row.status}</span>
+        <span className="truncate text-ink">{row.filename}</span>
+        <span className={`shrink-0 text-[11px] font-medium ${tone}`}>{row.status}</span>
       </div>
       {row.message ? (
-        <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{row.message}</p>
+        <p className="mt-0.5 text-[11px] text-ink-2">{row.message}</p>
       ) : null}
     </li>
   );
@@ -371,8 +371,8 @@ function DocumentRow({ row }: { row: UploadResultRow }) {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-slate-600 dark:text-slate-400">{label}</dt>
-      <dd className="text-slate-900 dark:text-slate-100">{value || '—'}</dd>
+      <dt className="text-[11px] text-ink-2">{label}</dt>
+      <dd className="text-ink">{value || '—'}</dd>
     </div>
   );
 }

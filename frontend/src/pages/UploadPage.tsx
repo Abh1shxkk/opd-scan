@@ -17,10 +17,11 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatBytes, ingestView } from '../lib/status';
 import type { UploadResultRow } from '../lib/types';
-import { Panel } from '../components/StatTile';
+import { Panel } from '../components/Sheet';
 import { StatusPill } from '../components/StatusPill';
 import { useToast } from '../components/Toast';
 import { Button, ErrorState, Select, TextInput } from '../components/ui';
+import { TriangleAlert } from 'lucide-react';
 
 interface FileRow {
   id: string;
@@ -72,7 +73,8 @@ export default function UploadPage() {
       queryClient.invalidateQueries({ queryKey: ['batches'] });
       toast.push(`Batch “${b.name}” created.`, 'success');
     },
-    onError: (e) => toast.push(e instanceof Error ? e.message : 'Could not create the batch.', 'error'),
+    onError: (e) =>
+      toast.push(e instanceof Error ? e.message : 'Could not create the batch.', 'error'),
   });
 
   const addFiles = useCallback((files: FileList | File[]) => {
@@ -93,7 +95,8 @@ export default function UploadPage() {
   }, []);
 
   const readyCount = rows.filter((r) => r.state === 'ready').length;
-  const canUpload = Boolean(batchId) && confirmed && encounterRef.trim().length > 0 && readyCount > 0 && !uploading;
+  const canUpload =
+    Boolean(batchId) && confirmed && encounterRef.trim().length > 0 && readyCount > 0 && !uploading;
 
   async function startUpload() {
     if (!canUpload) return;
@@ -104,7 +107,10 @@ export default function UploadPage() {
     let targetCaseId = caseId;
     if (!targetCaseId) {
       try {
-        const existing = await api.listCases({ batch_id: batchId, encounter_ref: encounterRef.trim() });
+        const existing = await api.listCases({
+          batch_id: batchId,
+          encounter_ref: encounterRef.trim(),
+        });
         const match = existing.find((c) => c.encounter_ref === encounterRef.trim());
         const created =
           match ??
@@ -157,18 +163,22 @@ export default function UploadPage() {
 
   return (
     <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Upload scans</h1>
-        <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-          Files are attached to a batch and to one patient encounter. References are entered by you and
-          are never derived from the file contents.
+      <header className="rule-double pb-2">
+        <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-ink">Upload scans</h1>
+        <p className="mt-1 text-[13px] text-ink-2">
+          Files are attached to a batch and to one patient encounter. References are entered by you
+          and are never derived from the file contents.
         </p>
       </header>
 
       {/* ------------------------------------------------------------- batch */}
       <Panel title="1. Batch" description="Group this delivery of files under a batch name.">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Select label="Existing batch" value={batchId} onChange={(e) => setBatchId(e.target.value)}>
+          <Select
+            label="Existing batch"
+            value={batchId}
+            onChange={(e) => setBatchId(e.target.value)}
+          >
             <option value="">Select a batch…</option>
             {(batches.data ?? []).map((b) => (
               <option key={b.id} value={b.id}>
@@ -194,7 +204,9 @@ export default function UploadPage() {
             </Button>
           </div>
         </div>
-        {batches.isError ? <ErrorState error={batches.error} retry={() => batches.refetch()} /> : null}
+        {batches.isError ? (
+          <ErrorState error={batches.error} retry={() => batches.refetch()} />
+        ) : null}
       </Panel>
 
       {/* ---------------------------------------------------------- references */}
@@ -224,16 +236,17 @@ export default function UploadPage() {
             }}
           />
         </div>
-        <label className="mt-3 flex items-start gap-2 rounded border border-slate-200 p-3 text-sm dark:border-slate-800">
+        <label className="mt-3 flex items-start gap-2 rounded border border-rule p-3 text-[13px]">
           <input
             type="checkbox"
             checked={confirmed}
             onChange={(e) => setConfirmed(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-slate-500 text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+            className="mt-0.5 h-4 w-4 rounded border-rule-2 text-chart focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           />
-          <span className="text-slate-900 dark:text-slate-100">
-            I have checked these references against the physical record and confirm they are correct.
-            <span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-400">
+          <span className="text-ink">
+            I have checked these references against the physical record and confirm they are
+            correct.
+            <span className="mt-0.5 block text-[11px] text-ink-2">
               Your name and the time are recorded against this confirmation.
             </span>
           </span>
@@ -253,15 +266,11 @@ export default function UploadPage() {
             setDragging(false);
             if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
           }}
-          className={`rounded-lg border-2 border-dashed p-8 text-center transition ${
-            dragging
-              ? 'border-sky-600 bg-sky-50 dark:border-sky-400 dark:bg-sky-950'
-              : 'border-slate-300 dark:border-slate-700'
+          className={`rounded border-2 border-dashed p-8 text-center transition ${
+            dragging ? 'border-chart bg-chart/[0.07] ' : 'border-rule '
           }`}
         >
-          <p className="text-sm text-slate-800 dark:text-slate-200">
-            Drag files here, or
-          </p>
+          <p className="text-[13px] text-ink">Drag files here, or</p>
           {/* The visible control is a real button; the input stays in the DOM for keyboard users. */}
           <label className="mt-2 inline-block">
             <span className="sr-only">Choose files to upload</span>
@@ -274,12 +283,12 @@ export default function UploadPage() {
                 if (e.target.files?.length) addFiles(e.target.files);
                 e.target.value = '';
               }}
-              className="block w-full cursor-pointer text-sm file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-sky-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:file:bg-sky-600"
+              className="block w-full cursor-pointer text-[13px] file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-chart file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-paper hover:file:bg-chart/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             />
           </label>
-          <p className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-            Maximum {formatBytes(CLIENT_MAX_BYTES)} per file. Password-protected and corrupted files are
-            rejected with the reason shown against the file.
+          <p className="mt-3 text-[11px] text-ink-2">
+            Maximum {formatBytes(CLIENT_MAX_BYTES)} per file. Password-protected and corrupted files
+            are rejected with the reason shown against the file.
           </p>
         </div>
 
@@ -298,8 +307,8 @@ export default function UploadPage() {
             Clear queue
           </Button>
           {!canUpload && rows.length > 0 && !uploading ? (
-            <p className="text-sm text-amber-800 dark:text-amber-300">
-              <span aria-hidden="true">⚠ </span>
+            <p className="text-[13px] text-note">
+              <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
               {!batchId
                 ? 'Select or create a batch first.'
                 : !encounterRef.trim()
@@ -311,7 +320,7 @@ export default function UploadPage() {
           ) : null}
         </div>
 
-        <p aria-live="polite" className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+        <p aria-live="polite" className="mt-2 text-[13px] text-ink-2">
           {status}
         </p>
 
@@ -337,13 +346,13 @@ export default function UploadPage() {
         ) : null}
 
         {rows.some((r) => r.state === 'done') ? (
-          <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">
+          <p className="mt-3 text-[13px] text-ink-2">
             {accepted.length} accepted, {rejected.length} rejected
             {duplicates.length > 0 ? `, ${duplicates.length} already uploaded` : ''}.{' '}
             {accepted.length > 0 ? (
               <Link
                 to={batchId ? `/documents?batch_id=${batchId}` : '/documents'}
-                className="font-medium text-sky-800 underline dark:text-sky-300"
+                className="font-medium text-chart underline"
               >
                 View the uploaded documents
               </Link>
@@ -362,7 +371,7 @@ function FileResultRow({ row }: { row: FileRow }) {
   return (
     <tr>
       <th scope="row" className="px-3 py-2 text-left font-normal align-top">
-        <span className="block max-w-xs truncate text-slate-900 dark:text-slate-100" title={row.file.name}>
+        <span className="block max-w-xs truncate text-ink" title={row.file.name}>
           {row.file.name}
         </span>
       </th>
@@ -373,12 +382,12 @@ function FileResultRow({ row }: { row: FileRow }) {
             <progress value={pct} max={100} className="w-32 align-middle">
               {pct}%
             </progress>
-            <span className="ml-2 text-xs tabular-nums text-slate-700 dark:text-slate-300">{pct}%</span>
+            <span className="ml-2 text-[11px] tabular-nums text-ink-2">{pct}%</span>
           </>
         ) : row.state === 'ready' ? (
-          <span className="text-slate-600 dark:text-slate-400">Waiting</span>
+          <span className="text-ink-2">Waiting</span>
         ) : (
-          <span className="text-slate-600 dark:text-slate-400">—</span>
+          <span className="text-ink-2">—</span>
         )}
       </td>
       <td>
@@ -387,25 +396,21 @@ function FileResultRow({ row }: { row: FileRow }) {
             <StatusPill view={ingestView(row.result.status)} size="sm" />
             {/* The rejection message is the actionable part — always shown in full, never truncated. */}
             {row.result.message ? (
-              <p
-                className={`mt-1 max-w-md text-sm ${
-                  rejected ? 'text-red-900 dark:text-red-200' : 'text-slate-700 dark:text-slate-300'
-                }`}
-              >
+              <p className={`mt-1 max-w-md text-[13px] ${rejected ? 'text-ink ' : 'text-ink-2 '}`}>
                 {row.result.message}
               </p>
             ) : null}
             {row.result.document_id ? (
               <Link
                 to={`/documents?q=${encodeURIComponent(row.file.name)}`}
-                className="mt-1 inline-block text-sm font-medium text-sky-800 underline dark:text-sky-300"
+                className="mt-1 inline-block text-[13px] font-medium text-chart underline"
               >
                 Open document
               </Link>
             ) : null}
           </>
         ) : (
-          <span className="text-slate-600 dark:text-slate-400">—</span>
+          <span className="text-ink-2">—</span>
         )}
       </td>
     </tr>

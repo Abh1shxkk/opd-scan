@@ -95,3 +95,13 @@ celerybeat.pid
 *.swo
 .DS_Store
 Thumbs.db
+
+# --------------------------------------------------------------------------- #
+# Design-review evidence
+#
+# Screenshots captured to verify a UI change. They are regenerated on demand and
+# are large; the durable design record is DESIGN.md and .impeccable/design.json.
+# --------------------------------------------------------------------------- #
+.impeccable/review/
+.impeccable/config.local.json
+.impeccable/live/

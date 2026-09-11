@@ -16,7 +16,7 @@ import { Link } from 'react-router-dom';
 import { api, reports } from '../lib/api';
 import { toQueryString, toSearchParams } from '../lib/filters';
 import { FilterBar, FilterSummary } from '../components/FilterBar';
-import { Panel } from '../components/StatTile';
+import { Panel } from '../components/Sheet';
 import { useToast } from '../components/Toast';
 import { Button, ErrorState } from '../components/ui';
 import { useUrlFilters } from '../hooks/useUrlFilters';
@@ -83,11 +83,11 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Reports</h1>
-        <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+      <header className="rule-double pb-2">
+        <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-ink">Reports</h1>
+        <p className="mt-1 text-[13px] text-ink-2">
           Exports use exactly the filters set below — the same query string the{' '}
-          <Link to={`/documents${toQueryString(filters)}`} className="font-medium text-sky-800 underline dark:text-sky-300">
+          <Link to={`/documents${toQueryString(filters)}`} className="font-medium text-chart underline">
             document list
           </Link>{' '}
           uses, so the totals match what you see there.
@@ -101,11 +101,11 @@ export default function ReportsPage() {
         description="Check this matches what you expect before downloading."
       >
         <FilterSummary value={filters} />
-        <p className="mt-2 text-sm text-slate-900 dark:text-slate-100">
+        <p className="mt-2 text-[13px] text-ink">
           {countQuery.isLoading ? (
             'Counting matching pages…'
           ) : countQuery.isError ? (
-            <span className="text-red-900 dark:text-red-200">The row count could not be loaded.</span>
+            <span className="text-ink">The row count could not be loaded.</span>
           ) : (
             <>
               <strong className="tabular-nums">{(total ?? 0).toLocaleString()}</strong> active page version
@@ -121,18 +121,18 @@ export default function ReportsPage() {
           {EXPORTS.map((e) => (
             <li
               key={e.id}
-              className="flex flex-wrap items-start justify-between gap-3 rounded border border-slate-200 p-3 dark:border-slate-800"
+              className="flex flex-wrap items-start justify-between gap-3 border-b border-rule px-2 py-2.5 last:border-b-0"
             >
               <div className="min-w-[16rem] flex-1">
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{e.label}</p>
-                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{e.detail}</p>
+                <p className="text-[13px] font-medium text-ink">{e.label}</p>
+                <p className="mt-0.5 text-[11px] text-ink-2">{e.detail}</p>
                 {e.id === 'flagged' ? (
-                  <label className="mt-2 flex items-center gap-2 text-sm text-slate-900 dark:text-slate-100">
+                  <label className="mt-2 flex items-center gap-2 text-[13px] text-ink">
                     <input
                       type="checkbox"
                       checked={annotated}
                       onChange={(ev) => setAnnotated(ev.target.checked)}
-                      className="h-4 w-4 rounded border-slate-500 text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+                      className="h-4 w-4 rounded border-rule-2 text-chart focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                     />
                     Burn the overlays into the exported images
                   </label>
@@ -145,29 +145,29 @@ export default function ReportsPage() {
           ))}
         </ul>
 
-        <p aria-live="polite" className="mt-3 text-sm text-slate-700 dark:text-slate-300">
+        <p aria-live="polite" className="mt-3 text-[13px] text-ink-2">
           {status}
         </p>
       </Panel>
 
       <Panel title="Column notes">
-        <ul className="list-inside list-disc space-y-1 text-sm text-slate-800 dark:text-slate-200">
+        <ul className="list-inside list-disc space-y-1 text-[13px] text-ink">
           <li>
-            <code className="font-mono text-xs">diagnosis_text</code> is the raw AI transcription and{' '}
-            <code className="font-mono text-xs">diagnosis_text_reviewed</code> is what a human confirmed.
+            <code className="font-mono text-[11px]">diagnosis_text</code> is the raw AI transcription and{' '}
+            <code className="font-mono text-[11px]">diagnosis_text_reviewed</code> is what a human confirmed.
             They are separate columns; the raw text is never overwritten.
           </li>
           <li>
-            <code className="font-mono text-xs">ai_vs_reviewed</code> says whether a human has looked at
+            <code className="font-mono text-[11px]">ai_vs_reviewed</code> says whether a human has looked at
             the extraction at all. An empty reviewed column means unreviewed AI output, not agreement.
           </li>
           <li>
-            <code className="font-mono text-xs">handwriting_status</code> is its own column and is never
-            part of <code className="font-mono text-xs">defect_codes</code> — handwriting is not a scan
+            <code className="font-mono text-[11px]">handwriting_status</code> is its own column and is never
+            part of <code className="font-mono text-[11px]">defect_codes</code> — handwriting is not a scan
             defect.
           </li>
           <li>
-            <code className="font-mono text-xs">scan_status</code> distinguishes blank, failed and
+            <code className="font-mono text-[11px]">scan_status</code> distinguishes blank, failed and
             unchecked pages from acceptable ones. None of the three is counted as acceptable.
           </li>
         </ul>

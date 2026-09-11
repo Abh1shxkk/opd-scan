@@ -72,7 +72,7 @@ export function FilterBar({
   return (
     <section
       aria-label="Filters"
-      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+      className="sheet p-4"
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <TextInput
@@ -140,7 +140,7 @@ export function FilterBar({
           >
             {expanded ? 'Hide' : 'Show'} status filters
             {active > 0 ? (
-              <span className="ml-1 rounded-full bg-sky-700 px-1.5 text-xs text-white dark:bg-sky-600">
+              <span className="ml-1 rounded bg-chart px-1.5 text-[11px] text-paper">
                 {active}
               </span>
             ) : null}
@@ -153,7 +153,7 @@ export function FilterBar({
         </div>
       </div>
 
-      <div id="filter-advanced" hidden={!expanded} className="mt-4 grid gap-5 border-t border-slate-200 pt-4 dark:border-slate-800 lg:grid-cols-4">
+      <div id="filter-advanced" hidden={!expanded} className="mt-4 grid gap-5 border-t border-rule pt-4 lg:grid-cols-4">
         <CheckboxGroup<PageClass>
           legend="Page class"
           options={PAGE_CLASS_ORDER.map((c) => ({ value: c, label: pageClassView(c).label }))}
@@ -181,7 +181,7 @@ export function FilterBar({
       </div>
 
       {resultSummary ? (
-        <p aria-live="polite" className="mt-3 text-sm text-slate-700 dark:text-slate-300">
+        <p aria-live="polite" className="mt-3 text-[13px] text-ink-2">
           {resultSummary}
         </p>
       ) : null}
@@ -194,14 +194,14 @@ export function FilterSummary({ value }: { value: Filters }) {
   const parts = describeFilters(value);
   if (parts.length === 0) {
     return (
-      <p className="text-sm text-slate-700 dark:text-slate-300">
+      <p className="text-[13px] text-ink-2">
         No filters set — this covers every active page version you are permitted to see.
       </p>
     );
   }
   return (
-    <p className="text-sm text-slate-700 dark:text-slate-300">
-      Filtered by: <span className="font-medium text-slate-900 dark:text-slate-100">{parts.join(' · ')}</span>
+    <p className="text-[13px] text-ink-2">
+      Filtered by: <span className="font-medium text-ink">{parts.join(' · ')}</span>
     </p>
   );
 }

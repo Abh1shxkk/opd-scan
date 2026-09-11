@@ -5,14 +5,16 @@
  * and so it cannot be quietly dropped from one of them.
  */
 
+import { Ban, Check, TriangleAlert } from 'lucide-react';
+
 export function UnreviewedBadge({ size = 'md' }: { size?: 'sm' | 'md' }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded border border-amber-600 bg-amber-100 font-semibold text-amber-950 dark:border-amber-400 dark:bg-amber-900 dark:text-amber-50 ${
-        size === 'sm' ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-1 text-sm'
+      className={`inline-flex items-center gap-1 rounded border border-note/50 bg-note/[0.07] font-semibold text-ink ${
+        size === 'sm' ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-[13px]'
       }`}
     >
-      <span aria-hidden="true">⚠</span>
+      <TriangleAlert size={12} strokeWidth={2.5} aria-hidden="true" className="shrink-0 text-note" />
       AI extraction — not reviewed
     </span>
   );
@@ -28,12 +30,18 @@ export function ReviewedBadge({ action }: { action: 'confirm' | 'correct' | 'rej
         : 'Rejected by a reviewer';
   const tone =
     action === 'reject'
-      ? 'border-red-600 bg-red-100 text-red-950 dark:border-red-400 dark:bg-red-950 dark:text-red-50'
-      : 'border-emerald-600 bg-emerald-100 text-emerald-950 dark:border-emerald-400 dark:bg-emerald-950 dark:text-emerald-50';
+      ? 'border-plot/50 bg-plot/[0.07] text-ink '
+      : 'border-band/50 bg-band/[0.07] text-ink ';
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-sm font-semibold ${tone}`}>
-      <span aria-hidden="true">{action === 'reject' ? '⊘' : '✓'}</span>
+    <span
+      className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[13px] font-semibold ${tone}`}
+    >
+      {action === 'reject' ? (
+        <Ban size={12} strokeWidth={2.5} aria-hidden="true" className="shrink-0" />
+      ) : (
+        <Check size={12} strokeWidth={2.5} aria-hidden="true" className="shrink-0" />
+      )}
       {text}
     </span>
   );

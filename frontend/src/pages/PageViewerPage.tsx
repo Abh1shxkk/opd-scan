@@ -54,11 +54,12 @@ import {
 } from '../components/OverlayCanvas';
 import { CompletenessPanel } from '../components/CompletenessPanel';
 import { PageThumb } from '../components/PageThumb';
-import { Panel } from '../components/StatTile';
+import { Panel } from '../components/Sheet';
 import { StatusPill } from '../components/StatusPill';
 import { Modal } from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { Button, DetailRow, ErrorState, Select, Spinner, TextArea } from '../components/ui';
+import { Archive, Check, TriangleAlert } from 'lucide-react';
 
 type Rotation = 0 | 90 | 180 | 270;
 
@@ -78,8 +79,11 @@ export default function PageViewerPage() {
   });
 
   const review = useMutation({
-    mutationFn: (payload: { action: PageReviewAction; comment?: string; payload?: Record<string, unknown> }) =>
-      api.reviewPage(pageVersionId, payload),
+    mutationFn: (payload: {
+      action: PageReviewAction;
+      comment?: string;
+      payload?: Record<string, unknown>;
+    }) => api.reviewPage(pageVersionId, payload),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['page', pageVersionId] });
       queryClient.invalidateQueries({ queryKey: ['pages'] });
@@ -102,7 +106,8 @@ export default function PageViewerPage() {
         );
       }
     },
-    onError: (e) => toast.push(e instanceof Error ? e.message : 'The action could not be saved.', 'error'),
+    onError: (e) =>
+      toast.push(e instanceof Error ? e.message : 'The action could not be saved.', 'error'),
   });
 
   const analyzePrescription = useMutation({
@@ -111,7 +116,8 @@ export default function PageViewerPage() {
       queryClient.invalidateQueries({ queryKey: ['page', pageVersionId] });
       toast.push('Prescription analysis started — this can take a few seconds.', 'success');
     },
-    onError: (e) => toast.push(e instanceof Error ? e.message : 'Could not start the analysis.', 'error'),
+    onError: (e) =>
+      toast.push(e instanceof Error ? e.message : 'Could not start the analysis.', 'error'),
   });
 
   if (q.isLoading) return <Spinner label="Loading page…" />;
@@ -143,7 +149,11 @@ function ViewerBody({
   page: PageDetail;
   canReview: boolean;
   canAnalyzePrescription: boolean;
-  onReview: (p: { action: PageReviewAction; comment?: string; payload?: Record<string, unknown> }) => void;
+  onReview: (p: {
+    action: PageReviewAction;
+    comment?: string;
+    payload?: Record<string, unknown>;
+  }) => void;
   reviewPending: boolean;
   onAnalyzePrescription: () => void;
   analyzingPrescription: boolean;
@@ -273,17 +283,17 @@ function ViewerBody({
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="rule-double flex flex-wrap items-start justify-between gap-3 pb-2">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+          <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-ink">
             Page {page.ordinal}
             {page.printed_page_label ? (
-              <span className="ml-2 text-base font-normal text-slate-600 dark:text-slate-400">
+              <span className="ml-2 text-[14px] font-normal text-ink-2">
                 printed {page.printed_page_label}
               </span>
             ) : null}
           </h1>
-          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+          <p className="mt-1 text-[13px] text-ink-2">
             {page.document_filename}
             {page.patient_ref ? ` · patient ${page.patient_ref}` : ''}
             {page.encounter_ref ? ` · encounter ${page.encounter_ref}` : ''}
@@ -295,7 +305,7 @@ function ViewerBody({
             <StatusPill view={reviewStateView(page.review_state)} />
           </div>
           {NEEDS_ATTENTION_CLASSES.includes(page.page_class) && page.review_state === 'accepted' ? (
-            <p className="max-w-xs text-right text-xs text-slate-600 dark:text-slate-400">
+            <p className="max-w-xs text-right text-[11px] text-ink-2">
               The quality engine's flag is a permanent record of the scan as captured — accepting a
               page does not clear it. It means a reviewer looked and chose to accept it anyway.
             </p>
@@ -311,7 +321,7 @@ function ViewerBody({
               <li key={p.page_version_id}>
                 <Link
                   to={`/pages/${p.page_version_id}`}
-                  className="block rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+                  className="block rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                   aria-current={p.page_version_id === page.page_version_id ? 'page' : undefined}
                 >
                   <PageThumb
@@ -333,20 +343,22 @@ function ViewerBody({
         {/* ------------------------------------------------------------ image */}
         <section
           aria-label="Page image"
-          className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+          className="sheet"
         >
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-2 dark:border-slate-800">
-            <div role="group" aria-label="Image source" className="flex gap-1 rounded border border-slate-200 p-0.5 dark:border-slate-800">
+          <div className="flex flex-wrap items-center gap-2 border-b border-rule p-2">
+            <div
+              role="group"
+              aria-label="Image source"
+              className="flex gap-1 rounded border border-rule p-0.5"
+            >
               {(['original', 'annotated'] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
                   aria-pressed={mode === m}
                   onClick={() => setMode(m)}
-                  className={`rounded px-2.5 py-1 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${
-                    mode === m
-                      ? 'bg-sky-700 text-white dark:bg-sky-600'
-                      : 'text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
+                  className={`rounded px-2.5 py-1 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                    mode === m ? 'bg-chart text-paper ' : 'text-ink hover:bg-chart/[0.07] '
                   }`}
                 >
                   {m === 'original' ? 'Original' : 'Annotated'}
@@ -355,13 +367,19 @@ function ViewerBody({
             </div>
 
             <div role="group" aria-label="Zoom" className="flex items-center gap-1">
-              <Button onClick={() => setZoom((z) => clamp(z / 1.25, MIN_ZOOM, MAX_ZOOM))} aria-label="Zoom out">
+              <Button
+                onClick={() => setZoom((z) => clamp(z / 1.25, MIN_ZOOM, MAX_ZOOM))}
+                aria-label="Zoom out"
+              >
                 −
               </Button>
-              <span className="w-14 text-center text-sm tabular-nums text-slate-800 dark:text-slate-200" aria-live="polite">
+              <span className="w-14 text-center text-[13px] tabular-nums text-ink" aria-live="polite">
                 {Math.round(effectiveScale * 100)}%
               </span>
-              <Button onClick={() => setZoom((z) => clamp(z * 1.25, MIN_ZOOM, MAX_ZOOM))} aria-label="Zoom in">
+              <Button
+                onClick={() => setZoom((z) => clamp(z * 1.25, MIN_ZOOM, MAX_ZOOM))}
+                aria-label="Zoom in"
+              >
                 +
               </Button>
               <Button onClick={() => setZoom(1)} aria-label="Fit page to width">
@@ -370,13 +388,17 @@ function ViewerBody({
             </div>
 
             <div role="group" aria-label="Rotate" className="flex items-center gap-1">
-              <Button onClick={() => setRotation((r) => rotate(r, -90))} aria-label="Rotate 90 degrees anticlockwise">
+              <Button
+                onClick={() => setRotation((r) => rotate(r, -90))}
+                aria-label="Rotate 90 degrees anticlockwise"
+              >
                 ↺
               </Button>
-              <span className="w-12 text-center text-sm tabular-nums text-slate-800 dark:text-slate-200">
-                {rotation}°
-              </span>
-              <Button onClick={() => setRotation((r) => rotate(r, 90))} aria-label="Rotate 90 degrees clockwise">
+              <span className="w-12 text-center text-[13px] tabular-nums text-ink">{rotation}°</span>
+              <Button
+                onClick={() => setRotation((r) => rotate(r, 90))}
+                aria-label="Rotate 90 degrees clockwise"
+              >
                 ↻
               </Button>
             </div>
@@ -384,36 +406,37 @@ function ViewerBody({
             <fieldset className="ml-auto flex items-center gap-3">
               <legend className="sr-only">Overlays to show</legend>
               {(['quality', 'handwriting', 'diagnosis'] as OverlayKind[]).map((k) => (
-                <label key={k} className="flex items-center gap-1.5 text-sm text-slate-800 dark:text-slate-200">
+                <label key={k} className="flex items-center gap-1.5 text-[13px] text-ink">
                   <input
                     type="checkbox"
                     checked={show[k]}
                     onChange={(e) => setShow((s) => ({ ...s, [k]: e.target.checked }))}
-                    className="h-4 w-4 rounded border-slate-500 text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+                    className="h-4 w-4 rounded border-rule-2 text-chart focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                   />
-                  {k === 'quality' ? 'Defect regions' : k === 'handwriting' ? 'Handwriting' : 'Diagnosis'}
+                  {k === 'quality'
+                    ? 'Defect regions'
+                    : k === 'handwriting'
+                      ? 'Handwriting'
+                      : 'Diagnosis'}
                 </label>
               ))}
             </fieldset>
           </div>
 
-          <div className="border-b border-slate-200 px-2 py-1.5 dark:border-slate-800">
+          <div className="border-b border-rule px-2 py-1.5">
             <OverlayLegend kinds={legendKinds} />
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+            <p className="mt-1 text-[11px] text-ink-2">
               {mode === 'annotated'
                 ? 'Overlays are drawn by the server into this image. Switch to Original to inspect the unmarked scan.'
                 : 'Scroll to zoom. Overlay positions are scaled from the original render size and rotate with the page.'}
             </p>
           </div>
 
-          <div
-            ref={paneRef}
-            className="relative max-h-[75vh] overflow-auto bg-slate-200 p-3 dark:bg-slate-950"
-          >
+          <div ref={paneRef} className="relative max-h-[75vh] overflow-auto bg-paper-3 p-3">
             {loading ? <Spinner label="Loading the page image…" /> : null}
             {error ? (
-              <div role="alert" className="p-4 text-sm text-red-900 dark:text-red-200">
-                <span aria-hidden="true">⚠ </span>
+              <div role="alert" className="p-4 text-[13px] text-ink">
+                <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
                 {error}
               </div>
             ) : null}
@@ -441,10 +464,10 @@ function ViewerBody({
                 ) : null}
               </RotatableStage>
             ) : url ? (
-              <div className="p-4 text-sm text-amber-900 dark:text-amber-200">
-                <span aria-hidden="true">⚠ </span>
-                This page version has no recorded pixel dimensions, so region overlays cannot be placed.
-                The image is shown without them.
+              <div className="p-4 text-[13px] text-ink">
+                <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
+                This page version has no recorded pixel dimensions, so region overlays cannot be
+                placed. The image is shown without them.
                 <img src={url} alt={`Page ${page.ordinal}`} className="mt-3 max-w-full" />
               </div>
             ) : null}
@@ -463,20 +486,32 @@ function ViewerBody({
                 >
                   Accept page
                 </Button>
-                <Button variant="danger" disabled={reviewPending} onClick={() => setRescanOpen(true)}>
+                <Button
+                  variant="danger"
+                  disabled={reviewPending}
+                  onClick={() => setRescanOpen(true)}
+                >
                   Request rescan
                 </Button>
-                <Button variant="secondary" disabled={reviewPending} onClick={() => setCommentOpen(true)}>
+                <Button
+                  variant="secondary"
+                  disabled={reviewPending}
+                  onClick={() => setCommentOpen(true)}
+                >
                   Add comment
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+              <p className="mt-2 text-[11px] text-ink-2">
                 Accepting records your name against this page version. It does not alter the scan.
               </p>
             </Panel>
           ) : null}
 
-          <QualityPanel page={page} onCorrect={canReview ? setCorrectFinding : undefined} onSelect={setSelectedShape} />
+          <QualityPanel
+            page={page}
+            onCorrect={canReview ? setCorrectFinding : undefined}
+            onSelect={setSelectedShape}
+          />
           <HandwritingPanel page={page} onSelect={setSelectedShape} />
           <DiagnosisPanel page={page} onSelect={setSelectedShape} />
           <PrescriptionPanel
@@ -485,7 +520,10 @@ function ViewerBody({
             onAnalyze={onAnalyzePrescription}
             analyzing={analyzingPrescription}
           />
-          <VersionHistoryPanel page={page} activeVersionId={activeVersion?.id ?? page.page_version_id} />
+          <VersionHistoryPanel
+            page={page}
+            activeVersionId={activeVersion?.id ?? page.page_version_id}
+          />
           <ReviewHistoryPanel page={page} />
           {page.case_id ? <CompletenessPanel caseId={page.case_id} /> : null}
 
@@ -497,7 +535,7 @@ function ViewerBody({
               <DetailRow term="Colour mode">{colourModeLabel(page.colour_mode)}</DetailRow>
               <DetailRow term="Capture type">{captureProfileLabel(page.capture_profile)}</DetailRow>
               <DetailRow term="Version">
-                {page.version_no} <span className="text-slate-600 dark:text-slate-400">(active)</span>
+                {page.version_no} <span className="text-ink-2">(active)</span>
               </DetailRow>
             </dl>
           </Panel>
@@ -565,32 +603,33 @@ function QualityPanel({
       </div>
 
       {NEEDS_ATTENTION_CLASSES.includes(page.page_class) && page.review_state === 'accepted' ? (
-        <p className="mb-3 rounded border border-slate-300 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+        <p className="mb-3 rounded border border-rule bg-paper-2 px-2 py-1.5 text-[11px] text-ink-2">
           This flag stays on record even though the page was accepted — accepting means a reviewer
           chose to proceed despite it, not that the defect stopped being true.
         </p>
       ) : null}
 
       {score ? (
-        <p className="mb-2 text-sm text-slate-700 dark:text-slate-300">
+        <p className="mb-2 text-[13px] text-ink-2">
           Quality score <span className="font-semibold tabular-nums">{score}</span>{' '}
-          <span className="text-slate-600 dark:text-slate-400">(1.00 is best)</span>
+          <span className="text-ink-2">(1.00 is best)</span>
         </p>
       ) : null}
 
       {quality?.provider_error ? (
-        <p className="mb-2 rounded border border-amber-400 bg-amber-50 px-2 py-1.5 text-sm text-amber-950 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-50">
-          <span aria-hidden="true">⚠ </span>
-          Provider signals unavailable: {quality.provider_error}. The local measurements below still apply.
+        <p className="mb-2 rounded border border-note/50 bg-note/[0.07] px-2 py-1.5 text-[13px] text-ink">
+          <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
+          Provider signals unavailable: {quality.provider_error}. The local measurements below still
+          apply.
         </p>
       ) : null}
 
       {!quality ? (
-        <p className="text-sm text-slate-700 dark:text-slate-300">
+        <p className="text-[13px] text-ink-2">
           No quality result has been recorded for this page version.
         </p>
       ) : quality.findings.length === 0 ? (
-        <p className="text-sm text-slate-700 dark:text-slate-300">
+        <p className="text-[13px] text-ink-2">
           {page.page_class === 'blank'
             ? 'Reported as blank. Nothing else is measured on a blank page — calling an empty sheet “blurred” would be meaningless.'
             : page.page_class === 'failed'
@@ -602,35 +641,38 @@ function QualityPanel({
           {quality.findings.map((f) => {
             const conf = formatConfidence(f.confidence);
             return (
-              <li
-                key={f.id}
-                className="rounded-lg border border-slate-200 p-2 dark:border-slate-800"
-              >
+              <li key={f.id} className="border-b border-rule px-2 py-2 last:border-b-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <span className="text-[13px] font-medium text-ink">
                     {defectLabel(f.code, f.label)}
                   </span>
                   <StatusPill view={severityView(f.severity)} size="sm" />
                   {/* Only rendered when the API supplied one. Never a made-up percentage. */}
-                  {conf ? (
-                    <span className="text-xs text-slate-600 dark:text-slate-400">confidence {conf}</span>
-                  ) : null}
-                  <span className="text-xs text-slate-600 dark:text-slate-400">
+                  {conf ? <span className="text-[11px] text-ink-2">confidence {conf}</span> : null}
+                  <span className="text-[11px] text-ink-2">
                     {f.source === 'provider' ? 'reported by provider' : 'measured locally'}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{f.detail}</p>
+                <p className="mt-1 text-[13px] text-ink">{f.detail}</p>
                 {isCutoff(f.code) ? (
-                  <p className="mt-1 text-xs italic text-slate-600 dark:text-slate-400">{CUTOFF_CAVEAT}</p>
+                  <p className="mt-1 text-[11px] italic text-ink-2">{CUTOFF_CAVEAT}</p>
                 ) : null}
                 <div className="mt-1 flex gap-2">
                   {f.region ? (
-                    <Button variant="ghost" onClick={() => onSelect(`q-${f.id}`)} className="px-1 py-0.5 text-xs">
+                    <Button
+                      variant="ghost"
+                      onClick={() => onSelect(`q-${f.id}`)}
+                      className="px-1 py-0.5 text-[11px]"
+                    >
                       Highlight on the page
                     </Button>
                   ) : null}
                   {onCorrect ? (
-                    <Button variant="ghost" onClick={() => onCorrect(f)} className="px-1 py-0.5 text-xs">
+                    <Button
+                      variant="ghost"
+                      onClick={() => onCorrect(f)}
+                      className="px-1 py-0.5 text-[11px]"
+                    >
                       Correct this finding
                     </Button>
                   ) : null}
@@ -644,7 +686,13 @@ function QualityPanel({
   );
 }
 
-function HandwritingPanel({ page, onSelect }: { page: PageDetail; onSelect: (id: string) => void }) {
+function HandwritingPanel({
+  page,
+  onSelect,
+}: {
+  page: PageDetail;
+  onSelect: (id: string) => void;
+}) {
   const hw = page.handwriting;
   const view = handwritingView(hw?.status ?? page.handwriting_status);
 
@@ -655,24 +703,22 @@ function HandwritingPanel({ page, onSelect }: { page: PageDetail; onSelect: (id:
     >
       <StatusPill view={view} showDetail />
 
-      {hw?.error ? (
-        <p className="mt-2 text-sm text-amber-900 dark:text-amber-200">Reported error: {hw.error}</p>
-      ) : null}
+      {hw?.error ? <p className="mt-2 text-[13px] text-ink">Reported error: {hw.error}</p> : null}
 
       {hw?.status === 'detected' && hw.regions.length > 0 ? (
         <ul className="mt-3 space-y-1">
           {hw.regions.map((r) => {
             const conf = formatConfidence(r.confidence);
             return (
-              <li key={r.id} className="flex flex-wrap items-baseline gap-2 text-sm">
+              <li key={r.id} className="flex flex-wrap items-baseline gap-2 text-[13px]">
                 <button
                   type="button"
                   onClick={() => onSelect(`h-${r.id}`)}
-                  className="font-medium text-sky-800 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:text-sky-300"
+                  className="font-medium text-chart underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 >
                   {handwritingCategoryLabel(r.category)}
                 </button>
-                <span className="text-xs text-slate-600 dark:text-slate-400">
+                <span className="text-[11px] text-ink-2">
                   {scriptHintLabel(r.script_hint)}
                   {conf ? ` · confidence ${conf}` : ''}
                 </span>
@@ -683,7 +729,7 @@ function HandwritingPanel({ page, onSelect }: { page: PageDetail; onSelect: (id:
       ) : null}
 
       {hw?.status === 'detected' && hw.regions.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+        <p className="mt-2 text-[13px] text-ink-2">
           Handwriting was detected but no region outline was returned for it.
         </p>
       ) : null}
@@ -695,39 +741,44 @@ function DiagnosisPanel({ page, onSelect }: { page: PageDetail; onSelect: (id: s
   const items = page.diagnoses ?? [];
 
   return (
-    <Panel title="Diagnosis extractions" description="Transcribed from a diagnosis label on this page.">
+    <Panel
+      title="Diagnosis extractions"
+      description="Transcribed from a diagnosis label on this page."
+    >
       {items.length === 0 ? (
         <StatusPill view={diagnosisView(page.diagnosis_status)} showDetail />
       ) : (
         <ul className="space-y-2">
           {items.map((d) => (
-            <li key={d.id} className="rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+            <li key={d.id} className="border-b border-rule px-2 py-2 last:border-b-0">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusPill view={diagnosisView(d.status)} size="sm" />
                 <StatusPill view={qualifierView(d.qualifier)} size="sm" />
                 {!d.is_reviewed ? (
-                  <span className="rounded bg-amber-200 px-1.5 py-0.5 text-xs font-semibold text-amber-950 dark:bg-amber-900 dark:text-amber-50">
+                  <span className="rounded bg-note/[0.07] px-1.5 py-0.5 text-[11px] font-semibold text-ink">
                     AI extraction — not reviewed
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+              <p className="mt-1 text-[11px] text-ink-2">
                 Label on the page: “{d.anchor_label || 'unlabelled'}”
               </p>
               {d.cleaned_text || d.raw_text ? (
-                <p className="mt-1 font-mono text-sm text-slate-900 dark:text-slate-100">
-                  {d.cleaned_text || d.raw_text}
-                </p>
+                <p className="mt-1 font-mono text-[13px] text-ink">{d.cleaned_text || d.raw_text}</p>
               ) : null}
               <div className="mt-1 flex gap-2">
                 {d.region ? (
-                  <Button variant="ghost" onClick={() => onSelect(`d-${d.id}`)} className="px-1 py-0.5 text-xs">
+                  <Button
+                    variant="ghost"
+                    onClick={() => onSelect(`d-${d.id}`)}
+                    className="px-1 py-0.5 text-[11px]"
+                  >
                     Highlight on the page
                   </Button>
                 ) : null}
                 <Link
                   to={`/diagnoses/${d.id}`}
-                  className="px-1 py-0.5 text-xs font-medium text-sky-800 underline dark:text-sky-300"
+                  className="px-1 py-0.5 text-[11px] font-medium text-chart underline"
                 >
                   Open in diagnosis review
                 </Link>
@@ -776,32 +827,32 @@ function PrescriptionPanel({
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <StatusPill view={prescriptionView(status)} showDetail />
         {p?.language_detected ? (
-          <span className="text-xs text-slate-600 dark:text-slate-400">Language: {p.language_detected}</span>
+          <span className="text-[11px] text-ink-2">Language: {p.language_detected}</span>
         ) : null}
       </div>
 
       {!p ? (
-        <p className="text-sm text-slate-700 dark:text-slate-300">
+        <p className="text-[13px] text-ink-2">
           {status === 'unconfigured'
             ? 'No prescription-reading provider is configured for this deployment.'
             : 'Not yet analysed. Use "Analyse as prescription" above if this page is a handwritten prescription.'}
         </p>
       ) : p.error ? (
-        <p className="text-sm text-red-800 dark:text-red-300">{p.error}</p>
+        <p className="text-[13px] text-plot">{p.error}</p>
       ) : (
         <div className="space-y-4">
           {p.requires_professional_confirmation ? (
-            <p className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-50">
-              <span aria-hidden="true">⚠ </span>
-              This reading has parts that are uncertain. Confirm every medicine, dose and instruction
-              with the prescribing doctor or a pharmacist before acting on it.
+            <p className="rounded border border-note/50 bg-note/[0.07] px-3 py-2 text-[13px] text-ink">
+              <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
+              This reading has parts that are uncertain. Confirm every medicine, dose and
+              instruction with the prescribing doctor or a pharmacist before acting on it.
             </p>
           ) : null}
 
           {p.safety_warnings.length > 0 ? (
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Safety warnings</h3>
-              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-red-800 dark:text-red-300">
+              <h3 className="text-[13px] font-semibold text-ink">Safety warnings</h3>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[13px] text-plot">
                 {p.safety_warnings.map((w, i) => (
                   <li key={i}>{w}</li>
                 ))}
@@ -811,83 +862,79 @@ function PrescriptionPanel({
 
           {p.medicines.length > 0 ? (
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Medicines</h3>
+              <h3 className="text-[13px] font-semibold text-ink">Medicines</h3>
               <ul className="mt-1 space-y-2">
                 {p.medicines.map((m, i) => (
-                  <li key={i} className="rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+                  <li key={i} className="border-b border-rule px-2 py-2 last:border-b-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      <span className="text-[13px] font-medium text-ink">
                         {m.name || 'Unreadable name'}
                       </span>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        className={`rounded px-2 py-0.5 text-[11px] font-medium ${
                           m.confidence === 'high'
-                            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100'
+                            ? 'bg-band/[0.07] text-ink '
                             : m.confidence === 'medium'
-                              ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100'
-                              : 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100'
+                              ? 'bg-note/[0.07] text-ink '
+                              : 'bg-plot/[0.07] text-ink '
                         }`}
                       >
                         {MEDICINE_CONFIDENCE_LABEL[m.confidence] ?? m.confidence}
                       </span>
                     </div>
-                    <dl className="mt-1 grid grid-cols-3 gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <dl className="mt-1 grid grid-cols-3 gap-2 text-[11px] text-ink-2">
                       <div>
-                        <dt className="text-slate-500 dark:text-slate-400">Dose</dt>
+                        <dt className="text-ink-2">Dose</dt>
                         <dd>{m.dose || '—'}</dd>
                       </div>
                       <div>
-                        <dt className="text-slate-500 dark:text-slate-400">Frequency</dt>
+                        <dt className="text-ink-2">Frequency</dt>
                         <dd>{m.frequency || '—'}</dd>
                       </div>
                       <div>
-                        <dt className="text-slate-500 dark:text-slate-400">Duration</dt>
+                        <dt className="text-ink-2">Duration</dt>
                         <dd>{m.duration || '—'}</dd>
                       </div>
                     </dl>
                     {m.general_use ? (
-                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                        Generally used for: {m.general_use}
-                      </p>
+                      <p className="mt-1 text-[11px] text-ink-2">Generally used for: {m.general_use}</p>
                     ) : null}
                     {m.uncertainty ? (
-                      <p className="mt-1 text-xs italic text-amber-800 dark:text-amber-300">
-                        Uncertain: {m.uncertainty}
-                      </p>
+                      <p className="mt-1 text-[11px] italic text-note">Uncertain: {m.uncertainty}</p>
                     ) : null}
                   </li>
                 ))}
               </ul>
             </div>
           ) : status === 'extracted_pending_review' ? (
-            <p className="text-sm text-slate-700 dark:text-slate-300">No medicines were read on this page.</p>
+            <p className="text-[13px] text-ink-2">No medicines were read on this page.</p>
           ) : null}
 
           {p.possible_interpretation ? (
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Possible interpretation</h3>
-              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{p.possible_interpretation}</p>
+              <h3 className="text-[13px] font-semibold text-ink">Possible interpretation</h3>
+              <p className="mt-1 text-[13px] text-ink">{p.possible_interpretation}</p>
             </div>
           ) : null}
 
           {p.patient_explanation ? (
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">In plain language</h3>
-              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{p.patient_explanation}</p>
+              <h3 className="text-[13px] font-semibold text-ink">In plain language</h3>
+              <p className="mt-1 text-[13px] text-ink">{p.patient_explanation}</p>
             </div>
           ) : null}
 
           {p.diagnosis_or_notes ? (
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Diagnosis / notes on the page</h3>
-              <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">{p.diagnosis_or_notes}</p>
+              <h3 className="text-[13px] font-semibold text-ink">Diagnosis / notes on the page</h3>
+              <p className="mt-1 text-[13px] text-ink">{p.diagnosis_or_notes}</p>
             </div>
           ) : null}
 
           {p.uncertainties.length > 0 ? (
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Unclear or unreadable</h3>
-              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-slate-700 dark:text-slate-300">
+              <h3 className="text-[13px] font-semibold text-ink">Unclear or unreadable</h3>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[13px] text-ink-2">
                 {p.uncertainties.map((u, i) => (
                   <li key={i}>{u}</li>
                 ))}
@@ -895,19 +942,19 @@ function PrescriptionPanel({
             </div>
           ) : null}
 
-          <details className="text-sm">
-            <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-300">
+          <details className="text-[13px]">
+            <summary className="cursor-pointer font-medium text-ink-2">
               Raw OCR text (exact, unedited)
             </summary>
-            <p className="mt-1 whitespace-pre-wrap font-mono text-xs text-slate-800 dark:text-slate-200">
+            <p className="mt-1 whitespace-pre-wrap font-mono text-[11px] text-ink">
               {p.raw_extracted_text || '(no text was transcribed)'}
             </p>
           </details>
 
-          <p className="border-t border-slate-200 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400">
-            This reading is AI-generated and may contain errors, especially for handwriting. It is not
-            a diagnosis and does not replace advice from the prescribing doctor or a pharmacist. Never
-            start, stop, or change a medication based only on this reading.
+          <p className="border-t border-rule pt-3 text-[11px] text-ink-2">
+            This reading is AI-generated and may contain errors, especially for handwriting. It is
+            not a diagnosis and does not replace advice from the prescribing doctor or a pharmacist.
+            Never start, stop, or change a medication based only on this reading.
           </p>
         </div>
       )}
@@ -919,7 +966,13 @@ function PrescriptionPanel({
  * Version history. Only the active version is counted anywhere in the system; superseded versions
  * exist solely here, which is why each row states plainly which one is which.
  */
-function VersionHistoryPanel({ page, activeVersionId }: { page: PageDetail; activeVersionId: string }) {
+function VersionHistoryPanel({
+  page,
+  activeVersionId,
+}: {
+  page: PageDetail;
+  activeVersionId: string;
+}) {
   const versions = [...(page.versions ?? [])].sort((a, b) => b.version_no - a.version_no);
 
   return (
@@ -928,7 +981,7 @@ function VersionHistoryPanel({ page, activeVersionId }: { page: PageDetail; acti
       description="A rescan creates a new version of the same logical page. Only the active version is counted in totals and exports."
     >
       {versions.length === 0 ? (
-        <p className="text-sm text-slate-700 dark:text-slate-300">Only one version exists for this page.</p>
+        <p className="text-[13px] text-ink-2">Only one version exists for this page.</p>
       ) : (
         <ol className="space-y-2">
           {versions.map((v) => {
@@ -937,38 +990,39 @@ function VersionHistoryPanel({ page, activeVersionId }: { page: PageDetail; acti
               <li
                 key={v.id}
                 className={`rounded border p-2 ${
-                  isActive
-                    ? 'border-sky-600 bg-sky-50 dark:border-sky-500 dark:bg-sky-950'
-                    : 'border-slate-200 dark:border-slate-800'
+                  isActive ? 'border-chart bg-chart/[0.07] ' : 'border-rule '
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    Version {v.version_no}
-                  </span>
+                  <span className="text-[13px] font-medium text-ink">Version {v.version_no}</span>
                   {isActive ? (
-                    <StatusPill view={{ label: 'Active version', tone: 'ok', icon: '✓' }} size="sm" />
+                    <StatusPill
+                      view={{ label: 'Active version', tone: 'ok', icon: Check }}
+                      size="sm"
+                    />
                   ) : (
                     <StatusPill
                       view={{
                         label: 'Superseded',
                         tone: 'neutral',
-                        icon: '↩',
+                        icon: Archive,
                         detail: 'Kept for audit. Not counted in any total or export.',
                       }}
                       size="sm"
                     />
                   )}
-                  {v.page_class ? <StatusPill view={pageClassView(v.page_class)} size="sm" /> : null}
+                  {v.page_class ? (
+                    <StatusPill view={pageClassView(v.page_class)} size="sm" />
+                  ) : null}
                 </div>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  {formatDateTime(v.created_at)} · {v.width}×{v.height} px · {colourModeLabel(v.colour_mode)} ·{' '}
-                  {captureProfileLabel(v.capture_profile)}
+                <p className="mt-1 text-[11px] text-ink-2">
+                  {formatDateTime(v.created_at)} · {v.width}×{v.height} px ·{' '}
+                  {colourModeLabel(v.colour_mode)} · {captureProfileLabel(v.capture_profile)}
                 </p>
                 {!isActive ? (
                   <Link
                     to={`/pages/${v.id}`}
-                    className="mt-1 inline-block text-xs font-medium text-sky-800 underline dark:text-sky-300"
+                    className="mt-1 inline-block text-[11px] font-medium text-chart underline"
                   >
                     View this superseded version
                   </Link>
@@ -997,16 +1051,12 @@ function ReviewHistoryPanel({ page }: { page: PageDetail }) {
     <Panel title="Review history">
       <ol className="space-y-2">
         {reviews.map((r) => (
-          <li key={r.id} className="border-l-2 border-slate-200 pl-2 dark:border-slate-800">
-            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-              {ACTION_LABEL[r.action] ?? r.action}
-            </p>
-            <p className="text-xs text-slate-600 dark:text-slate-400">
+          <li key={r.id} className="border-l-2 border-rule pl-2">
+            <p className="text-[13px] font-medium text-ink">{ACTION_LABEL[r.action] ?? r.action}</p>
+            <p className="text-[11px] text-ink-2">
               {r.reviewer_name || r.reviewer_id} · {formatDateTime(r.created_at)}
             </p>
-            {r.comment ? (
-              <p className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{r.comment}</p>
-            ) : null}
+            {r.comment ? <p className="mt-0.5 text-[13px] text-ink">{r.comment}</p> : null}
           </li>
         ))}
       </ol>
@@ -1085,7 +1135,9 @@ function CorrectFindingDialog({
   onClose: () => void;
   onSubmit: (payload: Record<string, unknown>, comment: string) => void;
 }) {
-  const [verdict, setVerdict] = useState<'not_a_defect' | 'wrong_severity' | 'wrong_code'>('not_a_defect');
+  const [verdict, setVerdict] = useState<'not_a_defect' | 'wrong_severity' | 'wrong_code'>(
+    'not_a_defect',
+  );
   const [severity, setSeverity] = useState('medium');
   const [comment, setComment] = useState('');
 
@@ -1130,15 +1182,13 @@ function CorrectFindingDialog({
         </>
       }
     >
-      <p className="mb-3 rounded bg-slate-100 p-2 text-sm dark:bg-slate-800">
+      <p className="mb-3 rounded bg-paper-2 p-2 text-[13px]">
         <span className="font-medium">{defectLabel(finding.code, finding.label)}</span>{' '}
-        <span className="text-slate-700 dark:text-slate-300">— {finding.detail}</span>
+        <span className="text-ink-2">— {finding.detail}</span>
       </p>
 
       <fieldset className="mb-3">
-        <legend className="mb-1 text-xs font-medium text-slate-800 dark:text-slate-200">
-          What is wrong with it?
-        </legend>
+        <legend className="mb-1 text-[11px] font-medium text-ink">What is wrong with it?</legend>
         {(
           [
             ['not_a_defect', 'This is not a defect — the page is fine as captured'],
@@ -1146,22 +1196,26 @@ function CorrectFindingDialog({
             ['wrong_code', 'The defect is real but has been classified as the wrong type'],
           ] as const
         ).map(([value, label]) => (
-          <label key={value} className="flex items-start gap-2 py-0.5 text-sm">
+          <label key={value} className="flex items-start gap-2 py-0.5 text-[13px]">
             <input
               type="radio"
               name="verdict"
               value={value}
               checked={verdict === value}
               onChange={() => setVerdict(value)}
-              className="mt-0.5 h-4 w-4 border-slate-500 text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+              className="mt-0.5 h-4 w-4 border-rule-2 text-chart focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             />
-            <span className="text-slate-900 dark:text-slate-100">{label}</span>
+            <span className="text-ink">{label}</span>
           </label>
         ))}
       </fieldset>
 
       {verdict === 'wrong_severity' ? (
-        <Select label="Correct severity" value={severity} onChange={(e) => setSeverity(e.target.value)}>
+        <Select
+          label="Correct severity"
+          value={severity}
+          onChange={(e) => setSeverity(e.target.value)}
+        >
           <option value="low">Low</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
@@ -1187,5 +1241,5 @@ function clamp(n: number, lo: number, hi: number): number {
 }
 
 function rotate(current: Rotation, delta: number): Rotation {
-  return (((current + delta) % 360) + 360) % 360 as Rotation;
+  return ((((current + delta) % 360) + 360) % 360) as Rotation;
 }
