@@ -16,11 +16,12 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     Enum,
     Float,
@@ -207,12 +208,33 @@ class Case(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     batch_id: Mapped[str] = mapped_column(String(36), ForeignKey("batches.id"), index=True)
+    # patient_ref carries the hospital's MR number, encounter_ref the IPD number. Both stay plain
+    # strings: they are transcribed from a paper form by a clerk, and nothing here reformats or
+    # "corrects" what was typed.
     patient_ref: Mapped[str] = mapped_column(String(128), default="", index=True)
     encounter_ref: Mapped[str] = mapped_column(String(128), index=True)
     checklist_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("checklists.id"), nullable=True)
     confirmed_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    # --- intake form fields -------------------------------------------------
+    #
+    # Everything below is entered on the patient-intake screen, which mirrors the paper/legacy
+    # .NET form. All nullable and defaulted: a case created by the older batch/case flow, or
+    # migrated from the legacy system with fields missing, stays valid. Nothing here is inferred
+    # or auto-filled from OCR — these are human-entered values, and an empty field means "not
+    # recorded", never "we guessed".
+    patient_name: Mapped[str] = mapped_column(String(255), default="")
+    department: Mapped[str] = mapped_column(String(128), default="")
+    mobile: Mapped[str] = mapped_column(String(32), default="")
+    disease: Mapped[str] = mapped_column(String(255), default="")
+    icd_code: Mapped[str] = mapped_column(String(32), default="")
+    consultant_name: Mapped[str] = mapped_column(String(255), default="")
+    discharge_type: Mapped[str] = mapped_column(String(64), default="")
+    mlc_type: Mapped[str] = mapped_column(String(64), default="")
+    admission_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    discharge_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     batch: Mapped[Batch] = relationship(back_populates="cases")
     documents: Mapped[list[Document]] = relationship(back_populates="case")

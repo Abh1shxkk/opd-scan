@@ -148,7 +148,12 @@ export default function UploadPage() {
   }
 
   const rejected = rows.filter((r) => r.result && r.result.status === 'rejected');
-  const accepted = rows.filter((r) => r.result && r.result.status !== 'rejected');
+  const duplicates = rows.filter((r) => r.result && r.result.status === 'duplicate');
+  // A duplicate is counted on its own. Folding it into "accepted" would report a file as newly
+  // stored when the server deliberately did not store it.
+  const accepted = rows.filter(
+    (r) => r.result && r.result.status !== 'rejected' && r.result.status !== 'duplicate',
+  );
 
   return (
     <div className="space-y-4">
@@ -333,7 +338,8 @@ export default function UploadPage() {
 
         {rows.some((r) => r.state === 'done') ? (
           <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">
-            {accepted.length} accepted, {rejected.length} rejected.{' '}
+            {accepted.length} accepted, {rejected.length} rejected
+            {duplicates.length > 0 ? `, ${duplicates.length} already uploaded` : ''}.{' '}
             {accepted.length > 0 ? (
               <Link
                 to={batchId ? `/documents?batch_id=${batchId}` : '/documents'}

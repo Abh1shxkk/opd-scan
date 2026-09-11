@@ -9,7 +9,17 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import admin, auth, dashboard, diagnoses, pages, prescriptions, records, reports
+from app.api.routes import (
+    admin,
+    auth,
+    dashboard,
+    diagnoses,
+    intake,
+    pages,
+    prescriptions,
+    records,
+    reports,
+)
 from app.config import settings
 from app.core.audit import redact
 
@@ -72,8 +82,9 @@ async def unhandled(request: Request, exc: Exception):  # noqa: ANN201, ARG001
     return JSONResponse(status_code=500, content={"detail": "An internal error occurred."})
 
 
-for router in (auth.router, records.router, pages.router, diagnoses.router, dashboard.router,
-               reports.router, admin.router, admin.checklists, prescriptions.router):
+for router in (auth.router, records.router, intake.router, pages.router, diagnoses.router,
+               dashboard.router, reports.router, admin.router, admin.checklists,
+               prescriptions.router):
     app.include_router(router, prefix=settings.api_prefix)
 
 

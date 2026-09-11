@@ -82,6 +82,36 @@ def get_batch(batch_id: str, db: Session = Depends(get_db), _: User = Depends(cu
 # -------------------------------------------------------------------- cases
 
 
+def case_out(case: Case, document_count: int = 0) -> CaseOut:
+    """The one place a Case becomes a CaseOut.
+
+    Built as a helper rather than spelled out at each return site on purpose: this response has
+    grown a dozen intake fields, and hand-listing them per endpoint is precisely how a field ends
+    up silently missing from one response and blank in the UI.
+    """
+    return CaseOut(
+        id=case.id,
+        batch_id=case.batch_id,
+        patient_ref=case.patient_ref,
+        encounter_ref=case.encounter_ref,
+        checklist_id=case.checklist_id,
+        confirmed_by=case.confirmed_by,
+        confirmed_at=case.confirmed_at,
+        document_count=document_count,
+        patient_name=case.patient_name,
+        department=case.department,
+        mobile=case.mobile,
+        disease=case.disease,
+        icd_code=case.icd_code,
+        consultant_name=case.consultant_name,
+        discharge_type=case.discharge_type,
+        mlc_type=case.mlc_type,
+        admission_date=case.admission_date,
+        discharge_date=case.discharge_date,
+        created_at=case.created_at,
+    )
+
+
 @router.get("/cases", response_model=list[CaseOut])
 def list_cases(
     batch_id: str | None = None,
@@ -100,13 +130,7 @@ def list_cases(
     out = []
     for c in db.execute(stmt).scalars():
         count = db.execute(select(func.count(Document.id)).where(Document.case_id == c.id)).scalar() or 0
-        out.append(
-            CaseOut(
-                id=c.id, batch_id=c.batch_id, patient_ref=c.patient_ref, encounter_ref=c.encounter_ref,
-                checklist_id=c.checklist_id, confirmed_by=c.confirmed_by, confirmed_at=c.confirmed_at,
-                document_count=count,
-            )
-        )
+        out.append(case_out(c, count))
     return out
 
 
@@ -122,11 +146,7 @@ def create_case(payload: CaseIn, db: Session = Depends(get_db), actor: User = De
         select(Case).where(Case.batch_id == payload.batch_id, Case.encounter_ref == encounter)
     ).scalar_one_or_none()
     if existing:
-        return CaseOut(
-            id=existing.id, batch_id=existing.batch_id, patient_ref=existing.patient_ref,
-            encounter_ref=existing.encounter_ref, checklist_id=existing.checklist_id,
-            confirmed_by=existing.confirmed_by, confirmed_at=existing.confirmed_at,
-        )
+        return case_out(existing)
 
     case = Case(
         batch_id=payload.batch_id,
@@ -138,10 +158,7 @@ def create_case(payload: CaseIn, db: Session = Depends(get_db), actor: User = De
     db.flush()
     audit.record(db, actor_id=actor.id, action="case.create", entity_type="case", entity_id=case.id)
     db.commit()
-    return CaseOut(
-        id=case.id, batch_id=case.batch_id, patient_ref=case.patient_ref, encounter_ref=case.encounter_ref,
-        checklist_id=case.checklist_id, confirmed_by=None, confirmed_at=None,
-    )
+    return case_out(case)
 
 
 @router.patch("/cases/{case_id}/confirm", response_model=CaseOut)
@@ -155,10 +172,7 @@ def confirm_case(case_id: str, db: Session = Depends(get_db), actor: User = Depe
     db.add(case)
     audit.record(db, actor_id=actor.id, action="case.confirm", entity_type="case", entity_id=case.id)
     db.commit()
-    return CaseOut(
-        id=case.id, batch_id=case.batch_id, patient_ref=case.patient_ref, encounter_ref=case.encounter_ref,
-        checklist_id=case.checklist_id, confirmed_by=case.confirmed_by, confirmed_at=case.confirmed_at,
-    )
+    return case_out(case)
 
 
 @router.get("/cases/{case_id}/completeness")

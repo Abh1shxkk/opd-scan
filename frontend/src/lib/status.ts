@@ -366,9 +366,23 @@ const INGEST: Record<IngestStatus, StatusView> = {
   corrupted: { label: 'Corrupted file', tone: 'bad', icon: '✕' },
 };
 
-export function ingestView(s: IngestStatus | 'accepted' | 'rejected' | null | undefined): StatusView {
+export function ingestView(
+  s: IngestStatus | 'accepted' | 'rejected' | 'duplicate' | null | undefined,
+): StatusView {
   if (!s) return INGEST.pending;
   if (s === 'accepted') return { label: 'Accepted', tone: 'ok', icon: '✓' };
+  // A duplicate is its own outcome and gets its own wording: the file was recognised and
+  // deliberately not stored again. Reading it as "Queued" would tell a clerk to wait for
+  // processing that is never going to happen, and reading it as "Accepted" would claim a second
+  // copy exists when it does not.
+  if (s === 'duplicate') {
+    return {
+      label: 'Already uploaded',
+      tone: 'warn',
+      icon: '⧉',
+      detail: 'An identical file was already stored, so this one was not added again.',
+    };
+  }
   return INGEST[s as IngestStatus] ?? INGEST.pending;
 }
 

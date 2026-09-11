@@ -21,6 +21,10 @@ import type {
   DiagnosisExtraction,
   DiagnosisReviewAction,
   DocumentSummary,
+  IntakeFormValues,
+  IntakeLookupResponse,
+  IntakeOptions,
+  IntakeResponse,
   Job,
   LoginResponse,
   Paged,
@@ -354,6 +358,79 @@ export const api = {
           message: 'Upload cancelled before it finished.',
           filename: file.name,
         });
+
+      signal?.addEventListener('abort', () => xhr.abort());
+      xhr.send(form);
+    });
+  },
+
+  // --------------------------------------------------------- patient intake
+
+  getIntakeOptions: () => request<IntakeOptions>('/intake/options'),
+
+  lookupMrNumber: (mrNumber: string) =>
+    request<IntakeLookupResponse>(`/intake/lookup${qs({ mr_number: mrNumber })}`),
+
+  /**
+   * Submit the intake form and its documents in one request.
+   *
+   * Uses XHR rather than fetch for the same reason the batch uploader does: a clerk attaching a
+   * multi-megabyte scan needs to see progress, and fetch cannot report upload progress.
+   */
+  submitIntake(
+    values: IntakeFormValues,
+    files: File[],
+    onProgress?: (fraction: number) => void,
+    signal?: AbortSignal,
+  ): Promise<IntakeResponse> {
+    return new Promise<IntakeResponse>((resolve, reject) => {
+      const form = new FormData();
+      for (const [key, value] of Object.entries(values)) form.append(key, value ?? '');
+      for (const file of files) form.append('files', file, file.name);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/intake`);
+      const token = getToken();
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 401) {
+          clearSession();
+          window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+          reject(new ApiError(401, 'Your session has expired. Please sign in again.'));
+          return;
+        }
+        let parsed: unknown = null;
+        try {
+          parsed = JSON.parse(xhr.responseText);
+        } catch {
+          /* fall through to the status-code message below */
+        }
+        if (xhr.status >= 200 && xhr.status < 300 && parsed) {
+          resolve(parsed as IntakeResponse);
+          return;
+        }
+        // Validation failures (missing MR number, unreadable date, discharge before admission)
+        // arrive as a 422 with the reason in `detail`. That text is written for the clerk, so it
+        // is surfaced verbatim rather than replaced with a generic message.
+        const detail = (parsed as { detail?: unknown } | null)?.detail;
+        reject(
+          new ApiError(
+            xhr.status,
+            typeof detail === 'string' && detail
+              ? detail
+              : `Could not save this record (HTTP ${xhr.status}).`,
+          ),
+        );
+      };
+
+      xhr.onerror = () =>
+        reject(new ApiError(0, 'Network error — nothing was saved. Check the connection and try again.'));
+      xhr.onabort = () => reject(new ApiError(0, 'Cancelled before the record was saved.'));
 
       signal?.addEventListener('abort', () => xhr.abort());
       xhr.send(form);

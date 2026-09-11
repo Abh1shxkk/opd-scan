@@ -89,6 +89,69 @@ export type ReviewState = 'pending' | 'accepted' | 'rescan_requested';
 
 export type PageReviewAction = 'accept' | 'request_rescan' | 'correct_finding' | 'correct_prescription' | 'comment';
 
+// ------------------------------------------------------------ patient intake
+
+/**
+ * A patient/admission record as entered on the intake screen.
+ *
+ * `patient_ref` is the hospital's MR number and `encounter_ref` the IPD number — the two identifier
+ * columns predate the intake form and are reused rather than duplicated. Every text field is always
+ * present and may be an empty string, which means "not recorded" and never "unknown to us".
+ */
+export interface CaseRecord {
+  id: string;
+  batch_id: string;
+  patient_ref: string;
+  encounter_ref: string;
+  checklist_id: string | null;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  document_count: number;
+  patient_name: string;
+  department: string;
+  mobile: string;
+  disease: string;
+  icd_code: string;
+  consultant_name: string;
+  discharge_type: string;
+  mlc_type: string;
+  admission_date: string | null;
+  discharge_date: string | null;
+  created_at: string | null;
+}
+
+export interface IntakeResponse {
+  case: CaseRecord;
+  documents: UploadResultRow[];
+}
+
+export interface IntakeLookupResponse {
+  found: boolean;
+  case: CaseRecord | null;
+}
+
+export interface IntakeOptions {
+  departments: string[];
+  discharge_types: string[];
+  mlc_types: string[];
+}
+
+/** What the intake form collects. Dates are ISO `YYYY-MM-DD`, or empty when not recorded. */
+export interface IntakeFormValues {
+  mr_number: string;
+  ipd_number: string;
+  patient_name: string;
+  department: string;
+  mobile: string;
+  disease: string;
+  icd_code: string;
+  consultant_name: string;
+  discharge_type: string;
+  mlc_type: string;
+  admission_date: string;
+  discharge_date: string;
+}
+
 /** One bounded, automatic threshold adjustment made from accumulated "not a defect" corrections. */
 export interface ThresholdAutotuneChange {
   defect_code: string;
@@ -468,8 +531,13 @@ export interface DashboardResponse {
 
 export interface UploadResultRow {
   document_id: string | null;
-  /** `rejected` carries a human-readable `message` explaining exactly why. */
-  status: IngestStatus | 'accepted' | 'rejected';
+  /**
+   * `rejected` carries a human-readable `message` explaining exactly why.
+   *
+   * `duplicate` means an identical file (same SHA-256) was already stored, so nothing was added —
+   * it is neither an acceptance nor a failure, and must not be counted as either.
+   */
+  status: IngestStatus | 'accepted' | 'rejected' | 'duplicate';
   message: string;
   filename?: string;
 }

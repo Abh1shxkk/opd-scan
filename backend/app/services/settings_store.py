@@ -37,6 +37,21 @@ def _put(db: Session, key: str, value: dict[str, Any], actor_id: str | None) -> 
         row.updated_at = datetime.now(timezone.utc)
 
 
+def get_json(db: Session, key: str) -> dict[str, Any] | None:
+    """Read an arbitrary settings blob. Returns None when the key has never been written.
+
+    Unlike get_thresholds below, nothing is validated or merged with a default here — the caller
+    owns the shape, because only the caller knows it.
+    """
+    return _get(db, key)
+
+
+def set_json(db: Session, key: str, value: dict[str, Any], actor_id: str | None) -> dict[str, Any]:
+    """Write an arbitrary settings blob. The caller is responsible for validating ``value``."""
+    _put(db, key, value, actor_id)
+    return value
+
+
 def get_thresholds(db: Session) -> dict[str, Any]:
     stored = _get(db, THRESHOLDS_KEY) or {}
     # Unknown keys are dropped: a threshold the engine does not read would be a silent no-op that

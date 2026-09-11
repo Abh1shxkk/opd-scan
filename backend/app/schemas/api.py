@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
@@ -69,6 +69,43 @@ class CaseOut(BaseModel):
     confirmed_by: str | None
     confirmed_at: datetime | None
     document_count: int = 0
+    # Intake-form fields. Always present in the response (empty string / null when not recorded)
+    # so the frontend never has to distinguish "absent from this payload" from "not filled in".
+    patient_name: str = ""
+    department: str = ""
+    mobile: str = ""
+    disease: str = ""
+    icd_code: str = ""
+    consultant_name: str = ""
+    discharge_type: str = ""
+    mlc_type: str = ""
+    admission_date: date | None = None
+    discharge_date: date | None = None
+    created_at: datetime | None = None
+
+
+class IntakeOut(BaseModel):
+    """What the intake screen gets back: the case that was created or reused, plus one row per
+    uploaded file (accepted / rejected / duplicate, exactly like the batch uploader reports)."""
+
+    case: CaseOut
+    documents: list["UploadResult"]
+
+
+class IntakeLookupOut(BaseModel):
+    """Previous intake for an MR number, used to prefill the form. ``found`` is false when the MR
+    number has never been seen — the form then stays blank rather than inventing anything."""
+
+    found: bool
+    case: CaseOut | None = None
+
+
+class IntakeOptionsOut(BaseModel):
+    """Dropdown values for the intake form, editable by an admin in Settings."""
+
+    departments: list[str]
+    discharge_types: list[str]
+    mlc_types: list[str]
 
 
 class UploadResult(BaseModel):

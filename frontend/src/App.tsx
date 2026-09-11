@@ -21,6 +21,7 @@ import DiagnosisReviewPage from './pages/DiagnosisReviewPage';
 import DiagnosisQueuePage from './pages/DiagnosisQueuePage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
+import PatientIntakePage from './pages/PatientIntakePage';
 import PrescriptionAnalyzerPage from './pages/PrescriptionAnalyzerPage';
 import PrescriptionResultPage from './pages/PrescriptionResultPage';
 
@@ -98,6 +99,14 @@ export default function App() {
                   element={
                     <RequireRole role="reviewer">
                       <DiagnosisReviewPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/intake"
+                  element={
+                    <RequireRole role="uploader">
+                      <PatientIntakePage />
                     </RequireRole>
                   }
                 />
