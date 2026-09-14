@@ -191,12 +191,24 @@ function DashboardBody({ data, filters }: { data: DashboardResponse; filters: Fi
       {/* --------------------------------------------------------- processing */}
       <Panel title="Processing" description="Work the queue still owes this view." flush>
         <div className="divide-y divide-rule">
-          <Reading label="Jobs queued" value={(t.processing?.queued ?? 0).toLocaleString()} />
-          <Reading label="Jobs running" value={(t.processing?.running ?? 0).toLocaleString()} />
+          {/* Each figure links to the list that produced it, the way every other reading on this
+              page does. "Jobs failed: 7" with nowhere to go tells a reviewer something is wrong
+              and then strands them. */}
+          <Reading
+            label="Jobs queued"
+            value={(t.processing?.queued ?? 0).toLocaleString()}
+            to="/jobs?state=queued"
+          />
+          <Reading
+            label="Jobs running"
+            value={(t.processing?.running ?? 0).toLocaleString()}
+            to="/jobs?state=running"
+          />
           <Reading
             label="Jobs failed"
             value={jobsFailed.toLocaleString()}
             unmeasured={jobsFailed > 0}
+            to="/jobs"
             note={jobsFailed > 0 ? 'A failed job leaves its page unmeasured, not clean.' : undefined}
           />
         </div>

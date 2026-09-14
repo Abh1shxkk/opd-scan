@@ -85,22 +85,30 @@ def put_retention(payload: dict, db: Session = Depends(get_db), actor: User = De
 checklists = APIRouter(prefix="/checklists", tags=["checklists"])
 
 
+def _checklist_out(c: Checklist) -> dict:
+    """The one shape a checklist is returned in.
+
+    Create and update used to answer with only `{"id": ...}` while the list returned the whole
+    record, so a client that saved a checklist and rendered the response got a row with no name and
+    no items. Same object, same shape, wherever it comes from.
+    """
+    return {
+        "id": c.id,
+        "name": c.name,
+        "is_active": c.is_active,
+        "items": [
+            {"id": i.id, "doc_type": i.doc_type, "min_pages": i.min_pages, "required": i.required}
+            for i in c.items
+        ],
+    }
+
+
 @checklists.get("")
 def list_checklists(db: Session = Depends(get_db), _: User = Depends(current_user)):
-    out = []
-    for c in db.execute(select(Checklist).order_by(Checklist.name)).scalars():
-        out.append(
-            {
-                "id": c.id,
-                "name": c.name,
-                "is_active": c.is_active,
-                "items": [
-                    {"id": i.id, "doc_type": i.doc_type, "min_pages": i.min_pages, "required": i.required}
-                    for i in c.items
-                ],
-            }
-        )
-    return out
+    return [
+        _checklist_out(c)
+        for c in db.execute(select(Checklist).order_by(Checklist.name)).scalars()
+    ]
 
 
 @checklists.post("", status_code=201)
@@ -115,7 +123,8 @@ def create_checklist(payload: ChecklistIn, db: Session = Depends(get_db), actor:
                              required=item.required))
     audit.record(db, actor_id=actor.id, action="checklist.create", entity_type="checklist", entity_id=c.id)
     db.commit()
-    return {"id": c.id}
+    db.refresh(c)
+    return _checklist_out(c)
 
 
 @checklists.put("/{checklist_id}")
@@ -134,7 +143,8 @@ def update_checklist(checklist_id: str, payload: ChecklistIn, db: Session = Depe
                              required=item.required))
     audit.record(db, actor_id=actor.id, action="checklist.update", entity_type="checklist", entity_id=c.id)
     db.commit()
-    return {"id": c.id}
+    db.refresh(c)
+    return _checklist_out(c)
 
 
 @checklists.delete("/{checklist_id}", status_code=204)

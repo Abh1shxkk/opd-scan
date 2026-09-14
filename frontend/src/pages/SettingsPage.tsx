@@ -14,8 +14,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { DEFECT_FAMILIES } from '../lib/defects';
 import { capabilityLabel } from '../lib/status';
-import type { Capability, CapabilitiesResponse, CapabilityMap } from '../lib/types';
+import type {
+  Capability,
+  CapabilitiesResponse,
+  CapabilityMap,
+  RetentionInfo,
+} from '../lib/types';
 import { Panel } from '../components/Sheet';
+import { ChecklistsPanel } from '../components/ChecklistsPanel';
+import { UsersPanel } from '../components/UsersPanel';
 import { BandPlot } from '../components/BandPlot';
 import { StatusPill } from '../components/StatusPill';
 import { useToast } from '../components/Toast';
@@ -34,6 +41,8 @@ export default function SettingsPage() {
       </header>
 
       <ThresholdsEditor />
+      <UsersPanel />
+      <ChecklistsPanel />
       <CapabilitiesPanel />
     </div>
   );
@@ -396,7 +405,98 @@ function CapabilitiesPanel() {
             contains patient text.
           </DetailRow>
         </dl>
+
+        {retention ? <RetentionEditor current={retention} /> : null}
       </Panel>
     </>
+  );
+}
+
+/**
+ * Change the retention periods.
+ *
+ * These were previously readable and not settable — the endpoint existed, the client did not, so
+ * the only way to change a records-retention policy was to edit the database.
+ *
+ * Zero is kept meaningful: it means "no period configured", not "delete immediately". Deleting
+ * everything the moment an admin typed 0 into a form is not a mistake a patient-records system gets
+ * to make, so the field says what zero does before it is saved.
+ */
+function RetentionEditor({ current }: { current: RetentionInfo }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [draft, setDraft] = useState<Record<keyof RetentionInfo, string>>({
+    originals_days: String(current.originals_days),
+    derivatives_days: String(current.derivatives_days),
+    audit_days: String(current.audit_days),
+  });
+
+  const dirty =
+    Number(draft.originals_days) !== current.originals_days ||
+    Number(draft.derivatives_days) !== current.derivatives_days ||
+    Number(draft.audit_days) !== current.audit_days;
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.putRetention({
+        originals_days: Number(draft.originals_days) || 0,
+        derivatives_days: Number(draft.derivatives_days) || 0,
+        audit_days: Number(draft.audit_days) || 0,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['capabilities'] });
+      toast.push('Retention periods saved.', 'success');
+    },
+    onError: (e) =>
+      toast.push(e instanceof Error ? e.message : 'Retention could not be saved.', 'error'),
+  });
+
+  const fields: Array<{ key: keyof RetentionInfo; label: string; hint: string }> = [
+    { key: 'originals_days', label: 'Original files', hint: 'Days after upload. 0 = no period set.' },
+    {
+      key: 'derivatives_days',
+      label: 'Derived renders',
+      hint: 'Stored, but not enforced by any code path yet.',
+    },
+    { key: 'audit_days', label: 'Audit records', hint: 'Nothing deletes audit rows automatically.' },
+  ];
+
+  return (
+    <div className="mt-4 border-t border-rule pt-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <p className="text-[13px] font-semibold text-ink">Change retention</p>
+        <Button variant="primary" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? 'Saving…' : 'Save retention'}
+        </Button>
+      </div>
+
+      <div className="mt-2 grid gap-3 sm:grid-cols-3">
+        {fields.map(({ key, label, hint }) => (
+          <label key={key} className="block">
+            <span className="text-[13px] text-ink">{label}</span>
+            <input
+              type="number"
+              min={0}
+              value={draft[key]}
+              onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+              className="mt-1 w-full border border-rule-2 bg-paper px-2 py-1 text-[13px] text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            />
+            <span className="mt-0.5 block text-[11px] text-ink-2">{hint}</span>
+          </label>
+        ))}
+      </div>
+
+      {dirty ? (
+        <p aria-live="polite" className="mt-2 text-[13px] text-ink">
+          <TriangleAlert
+            size={13}
+            strokeWidth={2.5}
+            aria-hidden="true"
+            className="mr-1 inline-block shrink-0 align-[-2px] text-note"
+          />
+          Unsaved changes.
+        </p>
+      ) : null}
+    </div>
   );
 }

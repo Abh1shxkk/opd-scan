@@ -191,7 +191,7 @@ export type IngestStatus =
   | 'password_protected'
   | 'corrupted';
 
-export type JobKind = 'ingest' | 'quality' | 'handwriting' | 'diagnosis';
+export type JobKind = 'ingest' | 'quality' | 'handwriting' | 'diagnosis' | 'prescription';
 export type JobState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 
 export type CaptureProfile = 'flatbed' | 'photo' | 'unknown';
@@ -284,6 +284,8 @@ export interface CasePatch {
   admission_date?: string | null;
   discharge_date?: string | null;
   record_date?: string | null;
+  /** Which checklist this record is measured against. `null` detaches it. */
+  checklist_id?: string | null;
 }
 
 export interface DocumentSummary {
@@ -696,6 +698,13 @@ export interface Checklist {
   name: string;
   is_active: boolean;
   items?: Array<{ id: string; doc_type: string; min_pages: number; required: boolean }>;
+}
+
+/** What create/update accept. Items carry no id — the server assigns them. */
+export interface ChecklistInput {
+  name: string;
+  is_active: boolean;
+  items: Array<{ doc_type: string; min_pages: number; required: boolean }>;
 }
 
 // ------------------------------------------------------------- paging

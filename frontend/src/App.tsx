@@ -18,6 +18,7 @@ import PatientDetailPage from './pages/PatientDetailPage';
 import UploadPage from './pages/UploadPage';
 import DocumentsPage from './pages/DocumentsPage';
 import PageViewerPage from './pages/PageViewerPage';
+import JobsPage from './pages/JobsPage';
 import RescanQueuePage from './pages/RescanQueuePage';
 import ReviewQueuePage from './pages/ReviewQueuePage';
 import ReviewDocumentsPage from './pages/ReviewDocumentsPage';
@@ -158,6 +159,7 @@ export default function App() {
                     </RequireRole>
                   }
                 />
+                <Route path="/jobs" element={<JobsPage />} />
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route
                   path="/prescriptions"

@@ -26,6 +26,7 @@ from app.db import get_db
 from app.models import (
     Batch,
     Case,
+    Checklist,
     Document,
     Job,
     LogicalPage,
@@ -385,6 +386,11 @@ def update_case(
     if admitted and discharged and discharged < admitted:
         raise HTTPException(422, "The discharge date is before the admission date. Check both dates.")
 
+    # A checklist that does not exist would leave the case pointing at nothing and the completeness
+    # panel silently reporting "not verified" forever — the exact failure this field exists to fix.
+    if changes.get("checklist_id") and not db.get(Checklist, changes["checklist_id"]):
+        raise HTTPException(404, "Checklist not found")
+
     for field, value in changes.items():
         setattr(case, field, value)
 
@@ -455,7 +461,10 @@ def case_completeness(case_id: str, db: Session = Depends(get_db), _: User = Dep
     result = db.execute(
         select(CompletenessResult).where(CompletenessResult.case_id == case_id)
     ).scalar_one_or_none()
-    return completeness_service.summarise(result)
+    # The case's own checklist_id rides along even when nothing has been computed yet. Otherwise
+    # the only way to know which checklist a case is attached to is to have already assessed it,
+    # and the control for attaching one could never show its current value.
+    return {**completeness_service.summarise(result), "checklist_id": case.checklist_id}
 
 
 @router.post("/cases/{case_id}/completeness/recompute")

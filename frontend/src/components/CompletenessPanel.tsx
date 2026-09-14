@@ -8,12 +8,14 @@
  * pages missing.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import { completenessView, formatDateTime } from '../lib/status';
 import { Panel } from './Sheet';
 import { StatusPill } from './StatusPill';
-import { ErrorState, Spinner } from './ui';
+import { useToast } from './Toast';
+import { Button, ErrorState, Spinner } from './ui';
 
 export function CompletenessPanel({ caseId }: { caseId: string }) {
   const q = useQuery({
@@ -64,6 +66,93 @@ export function CompletenessPanel({ caseId }: { caseId: string }) {
           ))}
         </dl>
       ) : null}
+
+      <ChecklistPicker caseId={caseId} current={q.data?.checklist_id ?? null} />
     </Panel>
+  );
+}
+
+/**
+ * Attach or change the checklist this case is measured against.
+ *
+ * This control is the reason the completeness feature was unreachable: a case could only ever be
+ * given a checklist at creation, and nothing in the product passed one, so every case in existence
+ * had none and every panel reported "not verified" forever.
+ *
+ * Recompute is offered separately because attaching a checklist assesses the record as it stands
+ * now — pages added afterwards do not re-trigger it.
+ */
+function ChecklistPicker({ caseId, current }: { caseId: string; current: string | null }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { can } = useAuth();
+
+  const lists = useQuery({
+    queryKey: ['checklists'],
+    queryFn: () => api.listChecklists(),
+    enabled: can('uploader'),
+  });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['completeness', caseId] });
+    queryClient.invalidateQueries({ queryKey: ['case', caseId] });
+  };
+
+  const attach = useMutation({
+    mutationFn: (checklistId: string | null) => api.updateCase(caseId, { checklist_id: checklistId }),
+    onSuccess: async (_data, checklistId) => {
+      if (checklistId) await api.recomputeCompleteness(caseId).catch(() => undefined);
+      invalidate();
+      toast.push(checklistId ? 'Checklist attached and assessed.' : 'Checklist detached.', 'success');
+    },
+    onError: (e) =>
+      toast.push(e instanceof Error ? e.message : 'Could not change the checklist.', 'error'),
+  });
+
+  const recompute = useMutation({
+    mutationFn: () => api.recomputeCompleteness(caseId),
+    onSuccess: () => {
+      invalidate();
+      toast.push('Completeness reassessed.', 'success');
+    },
+    onError: (e) => toast.push(e instanceof Error ? e.message : 'Could not reassess.', 'error'),
+  });
+
+  if (!can('uploader')) return null;
+
+  const options = (lists.data ?? []).filter((c) => c.is_active || c.id === current);
+  const busy = attach.isPending || recompute.isPending;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-rule pt-3">
+      <label className="min-w-[12rem] flex-1">
+        <span className="text-[11px] text-ink-2">Measured against</span>
+        <select
+          value={current ?? ''}
+          disabled={busy || lists.isLoading}
+          onChange={(e) => attach.mutate(e.target.value || null)}
+          className="mt-1 w-full border border-rule-2 bg-paper px-2 py-1 text-[13px] text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <option value="">No checklist</option>
+          {options.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {current ? (
+        <Button variant="secondary" disabled={busy} onClick={() => recompute.mutate()}>
+          {recompute.isPending ? 'Reassessing…' : 'Reassess'}
+        </Button>
+      ) : null}
+
+      {options.length === 0 && !lists.isLoading ? (
+        <p className="w-full text-[11px] text-ink-2">
+          No checklists exist yet. An administrator can create one in Settings.
+        </p>
+      ) : null}
+    </div>
   );
 }

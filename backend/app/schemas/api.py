@@ -20,6 +20,9 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    # The frontend's User type has always required this; it was simply never sent, because until
+    # now nothing rendered a user list.
+    created_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -114,6 +117,12 @@ class CasePatch(BaseModel):
     admission_date: date | None = None
     discharge_date: date | None = None
     record_date: date | None = None
+    # Which checklist this record is measured against. Settable here because a case is created
+    # before anyone knows what kind of record it is — without this the completeness feature could
+    # never be reached at all: nothing else in the product ever set it.
+    # Sending null detaches the checklist, which is why it is typed as an explicit union rather
+    # than relying on the "unset means unchanged" rule alone.
+    checklist_id: str | None = None
 
 
 class IntakeOut(BaseModel):

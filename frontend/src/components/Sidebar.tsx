@@ -18,6 +18,7 @@ import {
   Stethoscope,
   FilePlus2,
   BarChart3,
+  Activity,
   Pill,
   Settings as SettingsIcon,
   LogOut,
@@ -47,6 +48,7 @@ const MAIN_NAV: Array<{ to: string; label: string; role?: Role; icon: LucideIcon
   { to: '/diagnoses', label: 'Diagnosis review', role: 'reviewer', icon: Stethoscope },
   { to: '/intake', label: 'New file upload', role: 'uploader', icon: FilePlus2 },
   { to: '/prescriptions', label: 'Prescription analyzer', role: 'uploader', icon: Pill },
+  { to: '/jobs', label: 'Background jobs', icon: Activity },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
 ];
 

@@ -16,6 +16,7 @@ import type {
   CapabilitiesResponse,
   Case,
   Checklist,
+  ChecklistInput,
   CompletenessResponse,
   DashboardResponse,
   DiagnosisDetail,
@@ -34,6 +35,7 @@ import type {
   PageReplaceResult,
   PageReviewResult,
   PageSummary,
+  RetentionInfo,
   PrescriptionAnalysisResponse,
   PrescriptionAnalysisSummary,
   Qualifier,
@@ -581,11 +583,23 @@ export const api = {
 
   getDashboard: (params: URLSearchParams) => request<DashboardResponse>(`/dashboard${qs(params)}`),
 
+  /** Returns a plain array — /jobs is one of the few list endpoints with no Paged wrapper. */
   listJobs: (params?: { state?: string; kind?: string; document_id?: string }) =>
-    request<Paged<Job> | Job[]>(`/jobs${qs(params)}`),
+    request<Job[]>(`/jobs${qs(params)}`),
   cancelJob: (id: string) => request<Job>(`/jobs/${id}/cancel`, { method: 'POST' }),
 
   getThresholds: () => request<ThresholdsResponse>('/settings/thresholds'),
+  /**
+   * Set retention periods. The backend takes the map directly — no `values` wrapper here, unlike
+   * thresholds.
+   */
+  putRetention: (values: RetentionInfo) =>
+    request<RetentionInfo>('/settings/retention', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values),
+    }),
+
   putThresholds: (thresholds: Record<string, number>) =>
     request<ThresholdsResponse>('/settings/thresholds', {
       method: 'PUT',
@@ -595,6 +609,19 @@ export const api = {
   getCapabilities: () => request<CapabilitiesResponse | Record<string, Capability>>('/settings/capabilities'),
 
   listChecklists: () => request<Checklist[]>('/checklists'),
+  createChecklist: (payload: ChecklistInput) =>
+    request<Checklist>('/checklists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+  updateChecklist: (id: string, payload: ChecklistInput) =>
+    request<Checklist>(`/checklists/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+  deleteChecklist: (id: string) => request<void>(`/checklists/${id}`, { method: 'DELETE' }),
 };
 
 /** Report endpoints, kept separate because they are downloads rather than JSON. */
