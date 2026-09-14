@@ -277,6 +277,13 @@ class PageVersionRef(BaseModel):
     width: int
     height: int
     replaces_version_id: str | None = None
+    # How this version was captured, and what the engine made of it. The version-history list
+    # exists so a reviewer can see whether a rescan actually improved anything — without these it
+    # shows "— · —" on every row and answers nothing.
+    colour_mode: str | None = None
+    capture_profile: str | None = None
+    dpi_estimate: int | None = None
+    page_class: str | None = None
 
 
 class PageSummary(BaseModel):

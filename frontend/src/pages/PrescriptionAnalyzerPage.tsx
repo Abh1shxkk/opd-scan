@@ -11,7 +11,7 @@
  * PrescriptionResultPage.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -47,6 +47,16 @@ export default function PrescriptionAnalyzerPage() {
     queryKey: ['prescriptions', 'recent'],
     queryFn: () => api.listRecentPrescriptionAnalyses(),
   });
+
+  // pickFile revokes the *previous* preview, which leaves the last one alive when the component
+  // unmounts — and a successful analysis navigates straight to the result page, so that is the
+  // common path, not the rare one. See hooks/useAuthedObjectUrl.ts for the same pattern done right.
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl],
+  );
 
   const pickFile = useCallback(
     (f: File) => {

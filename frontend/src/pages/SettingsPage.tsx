@@ -321,7 +321,7 @@ function CapabilitiesPanel() {
                 ) : null}
               </div>
               {cap.setup_required ? (
-                <div className="mt-2 rounded bg-white/70 p-2">
+                <div className="mt-2 rounded bg-paper-2 p-2">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-ink">
                     Setup required
                   </p>

@@ -31,6 +31,7 @@ import type {
   Paged,
   PageDetail,
   PageReviewAction,
+  PageReplaceResult,
   PageReviewResult,
   PageSummary,
   PrescriptionAnalysisResponse,
@@ -543,10 +544,17 @@ export const api = {
   reprocessPage: (pageVersionId: string, stages: Array<'quality' | 'handwriting' | 'diagnosis' | 'prescription'>) =>
     request<{ job_ids: string[] }>(`/pages/${pageVersionId}/reprocess${qs({ stages })}`, { method: 'POST' }),
 
+  /**
+   * Attach a rescan to an existing page.
+   *
+   * Returns only the identity of the new version — not a PageDetail. The caller has to refetch the
+   * page if it wants the full record, because the replacement is analysed asynchronously and a
+   * snapshot taken here would show the new version before any of its results exist.
+   */
   replacePage: (pageVersionId: string, file: File) => {
     const form = new FormData();
     form.append('file', file, file.name);
-    return request<PageDetail>(`/pages/${pageVersionId}/replace`, { method: 'POST', body: form });
+    return request<PageReplaceResult>(`/pages/${pageVersionId}/replace`, { method: 'POST', body: form });
   },
 
   // ------------------------------------------------------------ diagnoses

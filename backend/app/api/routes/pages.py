@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import page_filters
+from app.api.routes.diagnoses import split_safety_context
 from app.core import audit
 from app.core.rbac import current_user, require_reviewer, require_uploader
 from app.core.storage import get_storage
@@ -257,33 +258,46 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
         else None
     )
 
-    diagnoses = [
-        DiagnosisOut(
-            id=d.id,
-            status=d.status.value,
-            anchor_label=d.anchor_label,
-            raw_text=d.raw_text,
-            cleaned_text=d.cleaned_text,
-            qualifier=d.qualifier.value,
-            icd_code_verbatim=d.icd_code_verbatim,
-            is_handwritten=d.is_handwritten,
-            region=d.region_json,
-            confidence=d.confidence,
-            model_version=d.model_version,
-            provider_used=d.provider_used,
-            error=d.error,
-            extracted_at=d.extracted_at,
-            is_reviewed=bool(d.reviews),
-            reviews=[],
+    diagnoses = []
+    for d in pv.diagnoses:
+        # Same split the diagnosis review screen uses, so a reviewer cross-checking one extraction
+        # from two screens sees the same safety context in both.
+        region, note, cleaning_applied, ambiguous_abbreviations = split_safety_context(d.region_json)
+        diagnoses.append(
+            DiagnosisOut(
+                id=d.id,
+                status=d.status.value,
+                anchor_label=d.anchor_label,
+                raw_text=d.raw_text,
+                cleaned_text=d.cleaned_text,
+                qualifier=d.qualifier.value,
+                icd_code_verbatim=d.icd_code_verbatim,
+                is_handwritten=d.is_handwritten,
+                region=region,
+                note=note,
+                cleaning_applied=cleaning_applied,
+                ambiguous_abbreviations=ambiguous_abbreviations,
+                confidence=d.confidence,
+                model_version=d.model_version,
+                provider_used=d.provider_used,
+                error=d.error,
+                extracted_at=d.extracted_at,
+                is_reviewed=bool(d.reviews),
+                reviews=[],
+            )
         )
-        for d in pv.diagnoses
-    ]
 
     versions = [
         PageVersionRef(
             id=v.id, version_no=v.version_no, is_active=v.is_active, created_at=v.created_at,
             created_by=v.created_by, width=v.width, height=v.height,
             replaces_version_id=v.replaces_version_id,
+            colour_mode=v.colour_mode.value if v.colour_mode else None,
+            capture_profile=v.capture_profile.value if v.capture_profile else None,
+            dpi_estimate=v.dpi_estimate,
+            # A superseded version keeps its own verdict; None means it was never measured, which
+            # the UI must show as "not checked" rather than as a pass.
+            page_class=v.quality.overall.value if v.quality else None,
         )
         for v in sorted(pv.logical_page.versions, key=lambda v: v.version_no)
     ]

@@ -327,6 +327,25 @@ export const MEDICINE_CONFIDENCE_LABEL: Record<string, string> = {
   high: 'High confidence',
 };
 
+const MEDICINE_CONFIDENCE: Record<string, StatusView> = {
+  high: { label: 'High confidence', tone: 'ok', icon: Check },
+  medium: { label: 'Medium confidence', tone: 'warn', icon: CircleAlert },
+  low: { label: 'Low confidence', tone: 'bad', icon: TriangleAlert },
+};
+
+/**
+ * How confident the model is that it read this medicine correctly.
+ *
+ * A real StatusView rather than a bare colour + label: this file's own rule is that colour is never
+ * the only carrier of meaning, and "low confidence" on a drug name is exactly the status that must
+ * survive a greyscale print or a colour-vision deficiency. An unrecognised value is treated as low,
+ * never as high — the safe direction to round in.
+ */
+export function medicineConfidenceView(c: string | null | undefined): StatusView {
+  if (!c) return MEDICINE_CONFIDENCE.low;
+  return MEDICINE_CONFIDENCE[c] ?? MEDICINE_CONFIDENCE.low;
+}
+
 export function diagnosisView(s: DiagnosisStatus | null | undefined): StatusView {
   if (!s) return DIAGNOSIS.pending;
   return DIAGNOSIS[s] ?? DIAGNOSIS.pending;

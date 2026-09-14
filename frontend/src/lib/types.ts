@@ -168,6 +168,12 @@ export interface ThresholdAutotuneChange {
   sample_size: number;
 }
 
+/** What `POST /pages/{id}/replace` returns: the new version's identity, nothing more. */
+export interface PageReplaceResult {
+  page_version_id: string;
+  version_no: number;
+}
+
 export interface PageReviewResult {
   ok: boolean;
   review_state: ReviewState;

@@ -34,7 +34,7 @@ import {
   formatScore,
   handwritingCategoryLabel,
   handwritingView,
-  MEDICINE_CONFIDENCE_LABEL,
+  medicineConfidenceView,
   NEEDS_ATTENTION_CLASSES,
   pageClassView,
   prescriptionView,
@@ -875,17 +875,7 @@ function PrescriptionPanel({
                       <span className="text-[13px] font-medium text-ink">
                         {m.name || 'Unreadable name'}
                       </span>
-                      <span
-                        className={`rounded px-2 py-0.5 text-[11px] font-medium ${
-                          m.confidence === 'high'
-                            ? 'bg-band/[0.07] text-ink '
-                            : m.confidence === 'medium'
-                              ? 'bg-note/[0.07] text-ink '
-                              : 'bg-plot/[0.07] text-ink '
-                        }`}
-                      >
-                        {MEDICINE_CONFIDENCE_LABEL[m.confidence] ?? m.confidence}
-                      </span>
+                      <StatusPill view={medicineConfidenceView(m.confidence)} size="sm" />
                     </div>
                     <dl className="mt-1 grid grid-cols-3 gap-2 text-[11px] text-ink-2">
                       <div>

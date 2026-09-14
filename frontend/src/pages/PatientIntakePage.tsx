@@ -299,8 +299,13 @@ export default function PatientIntakePage() {
           />
           {files.length > 0 ? (
             <ul className="mt-3 divide-y divide-rule text-[13px]">
+              {/* Keyed on more than the name: two folders picked in one dialog can both contain
+                  an IMG_0001.jpg, and a bare-name key silently drops one of the rows. */}
               {files.map((f) => (
-                <li key={f.name} className="flex items-center justify-between gap-3 py-1.5">
+                <li
+                  key={`${f.name}-${f.size}-${f.lastModified}`}
+                  className="flex items-center justify-between gap-3 py-1.5"
+                >
                   <span className="truncate text-ink">{f.name}</span>
                   <span className="shrink-0 text-[11px] text-ink-2">{formatBytes(f.size)}</span>
                 </li>

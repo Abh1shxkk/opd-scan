@@ -42,6 +42,29 @@ def _reviewer_name(user: User | None) -> str | None:
     return (user.full_name or "").strip() or user.email
 
 
+def split_safety_context(
+    region_json: dict | None,
+) -> tuple[dict | None, str | None, list[str], list[str]]:
+    """Separate the extractor's safety context from the region box it is stored alongside.
+
+    ``region_json`` carries both the geometry and the reasons the reader should be careful — which
+    abbreviations were deliberately left unexpanded, what cleaning was applied, any note. They live
+    in one column but mean different things, so every response that shows a diagnosis has to split
+    them the same way. Shared rather than repeated: the page viewer previously built its own
+    DiagnosisOut without these fields, so the same extraction showed its warnings in the review
+    queue and hid them in the viewer.
+    """
+    data = region_json or {}
+    safety_keys = ("note", "cleaning_applied", "ambiguous_abbreviations")
+    region = {k: v for k, v in data.items() if k not in safety_keys} or None
+    return (
+        region,
+        data.get("note") or None,
+        list(data.get("cleaning_applied") or []),
+        list(data.get("ambiguous_abbreviations") or []),
+    )
+
+
 def _serialise(d: DiagnosisExtraction, db: Session, include_source: bool = True) -> DiagnosisOut:
     pv = d.page_version
     page = pv.logical_page
@@ -53,11 +76,7 @@ def _serialise(d: DiagnosisExtraction, db: Session, include_source: bool = True)
         ).scalars()
     } if d.reviews else {}
 
-    # The extractor's safety context rides inside region_json; separate it from the region box so
-    # each half is presented as what it is.
-    region_json = d.region_json or {}
-    safety_keys = ("note", "cleaning_applied", "ambiguous_abbreviations")
-    region = {k: v for k, v in region_json.items() if k not in safety_keys} or None
+    region, note, cleaning_applied, ambiguous_abbreviations = split_safety_context(d.region_json)
 
     return DiagnosisOut(
         id=d.id,
@@ -69,9 +88,9 @@ def _serialise(d: DiagnosisExtraction, db: Session, include_source: bool = True)
         icd_code_verbatim=d.icd_code_verbatim,
         is_handwritten=d.is_handwritten,
         region=region,
-        note=region_json.get("note") or None,
-        cleaning_applied=list(region_json.get("cleaning_applied") or []),
-        ambiguous_abbreviations=list(region_json.get("ambiguous_abbreviations") or []),
+        note=note,
+        cleaning_applied=cleaning_applied,
+        ambiguous_abbreviations=ambiguous_abbreviations,
         confidence=d.confidence,
         model_version=d.model_version,
         provider_used=d.provider_used,
