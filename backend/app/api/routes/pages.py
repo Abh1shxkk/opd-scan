@@ -360,9 +360,14 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
         metrics=(pv.quality.raw_metrics_json if pv.quality else {}) or {},
         provider_used=pv.quality.provider_used if pv.quality else None,
         provider_error=pv.quality.provider_error if pv.quality else None,
+        # page_version_id and payload are sent because the frontend's PageReviewEntry type has
+        # always declared them. payload is what a correct_finding review actually changed, which is
+        # the only record of it — omitting it left that undiscoverable.
         reviews=[
             {"id": r.id, "action": r.action, "comment": r.comment, "reviewer_id": r.reviewer_id,
              "reviewer_name": _review_names.get(r.reviewer_id),
+             "page_version_id": r.page_version_id,
+             "payload": r.payload_json or {},
              "created_at": r.created_at.isoformat()}
             for r in sorted(pv.reviews, key=lambda r: r.created_at)
         ],

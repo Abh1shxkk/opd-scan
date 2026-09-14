@@ -160,3 +160,29 @@ def test_a_correction_is_visible_wherever_the_diagnosis_is_shown(
     listed = client.get("/api/diagnoses", headers=auth["reviewer"]).json()["items"]
     row = next(d for d in listed if d["id"] == extraction.id)
     assert row["corrected_text"] == "Acute gastroenteritis"
+
+
+def test_a_page_review_entry_carries_everything_the_frontend_declares(client, auth, sample_page):
+    """PageReviewEntry declares page_version_id and payload; neither was ever sent.
+
+    payload is the only record of what a correct_finding review actually changed, so omitting it
+    made that undiscoverable from the page itself.
+    """
+    client.post(
+        f"/api/pages/{sample_page.id}/review",
+        headers=auth["reviewer"],
+        json={
+            "action": "correct_finding",
+            "comment": "the shadow is the binding, not a capture fault",
+            "payload": {"finding_id": "x", "defect_code": "shadow", "verdict": "not_a_defect"},
+        },
+    )
+
+    review = _page_detail(client, auth, sample_page.id)["reviews"][-1]
+    for field in ("id", "action", "comment", "reviewer_id", "reviewer_name", "page_version_id",
+                  "payload", "created_at"):
+        assert field in review, f"PageReviewEntry is missing {field!r}"
+
+    assert review["page_version_id"] == sample_page.id
+    assert review["payload"]["defect_code"] == "shadow"
+    assert review["reviewer_name"], "a name, never a bare UUID"

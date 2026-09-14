@@ -128,13 +128,28 @@ const PAGE_CLASS: Record<PageClass, StatusView> = {
  *
  * `reviewState` is optional so callers that show the class alone are unaffected.
  */
+/**
+ * Two of the class labels are instructions rather than observations: "Rescan required" and "Needs
+ * review" both tell the reader to do something. Once a reviewer has looked and decided otherwise,
+ * the instruction is stale — it is ordering work that has been explicitly overruled, and no amount
+ * of explanatory text beside it stops "Rescan required" next to "Accepted" reading as a
+ * contradiction. So when the page has been accepted, the label states what was found instead of
+ * what to do about it.
+ *
+ * The verdict itself is unchanged; only its wording moves from imperative to observation.
+ */
+const OVERRULED_LABEL: Partial<Record<PageClass, string>> = {
+  rescan: 'Serious scan defects',
+  review: 'Scan defects found',
+};
+
 export function pageClassView(
   c: PageClass | null | undefined,
   reviewState?: ReviewState | null,
 ): StatusView {
   const base = (c ? PAGE_CLASS[c] : undefined) ?? PAGE_CLASS.unchecked;
   if (reviewState === 'accepted' && c && NEEDS_ATTENTION_CLASSES.includes(c)) {
-    return { ...base, qualifier: 'accepted by reviewer' };
+    return { ...base, label: OVERRULED_LABEL[c] ?? base.label, qualifier: 'accepted by reviewer' };
   }
   return base;
 }

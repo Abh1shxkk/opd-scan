@@ -483,45 +483,15 @@ function ViewerBody({
         {/* ------------------------------------------------------------ side */}
         <div className="space-y-4">
           {canReview ? (
-            <Panel title="Reviewer actions">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="primary"
-                  disabled={reviewPending}
-                  onClick={() => onReview({ action: 'accept' })}
-                >
-                  Accept page
-                </Button>
-                <Button
-                  variant="danger"
-                  disabled={reviewPending}
-                  onClick={() => setRescanOpen(true)}
-                >
-                  Request rescan
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={reviewPending}
-                  onClick={() => setCommentOpen(true)}
-                >
-                  Add comment
-                </Button>
-                {canReplace ? (
-                  <Button variant="secondary" onClick={() => setReplaceOpen(true)}>
-                    Replace with rescan
-                  </Button>
-                ) : null}
-              </div>
-              <p className="mt-2 text-[11px] text-ink-2">
-                Accepting records your name against this page version. It does not alter the scan.
-              </p>
-              {page.review_state === 'rescan_requested' ? (
-                <p className="mt-2 text-[11px] text-ink-2">
-                  A rescan was requested for this page. Upload it with “Replace with rescan” — the
-                  current version stays in history.
-                </p>
-              ) : null}
-            </Panel>
+            <ReviewerActions
+              page={page}
+              canReplace={canReplace}
+              reviewPending={reviewPending}
+              onAccept={() => onReview({ action: 'accept' })}
+              onRequestRescan={() => setRescanOpen(true)}
+              onComment={() => setCommentOpen(true)}
+              onReplace={() => setReplaceOpen(true)}
+            />
           ) : null}
 
           <QualityPanel
@@ -605,6 +575,100 @@ function ViewerBody({
   );
 }
 
+/**
+ * What a reviewer can still do, given what has already been decided.
+ *
+ * The panel used to offer the same four buttons regardless of state, so a page that had just been
+ * accepted still showed "Accept page" as its primary action and said nothing about the decision
+ * already on record. That reads as though the click did nothing.
+ *
+ * So the decision is stated first, with who made it and when, and the action that has already been
+ * taken stops being offered as though it were still open. The opposite decision stays available —
+ * changing your mind is a normal part of review, and it is recorded as its own entry rather than
+ * replacing the first.
+ */
+function ReviewerActions({
+  page,
+  canReplace,
+  reviewPending,
+  onAccept,
+  onRequestRescan,
+  onComment,
+  onReplace,
+}: {
+  page: PageDetail;
+  canReplace: boolean;
+  reviewPending: boolean;
+  onAccept: () => void;
+  onRequestRescan: () => void;
+  onComment: () => void;
+  onReplace: () => void;
+}) {
+  const accepted = page.review_state === 'accepted';
+  const rescanRequested = page.review_state === 'rescan_requested';
+
+  // The review that produced the current state — the most recent one that closed it.
+  const decisive = [...(page.reviews ?? [])]
+    .reverse()
+    .find((r) => r.action === (accepted ? 'accept' : 'request_rescan'));
+
+  return (
+    <Panel title="Reviewer actions">
+      {decisive ? (
+        <p className="mb-3 border-b border-rule pb-2 text-[13px] text-ink">
+          {accepted ? 'Accepted' : 'Rescan requested'}
+          {decisive.reviewer_name || decisive.reviewer_id
+            ? ` by ${decisive.reviewer_name || decisive.reviewer_id}`
+            : ''}
+          {decisive.created_at ? ` · ${formatDateTime(decisive.created_at)}` : ''}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        {!accepted ? (
+          <Button variant="primary" disabled={reviewPending} onClick={onAccept}>
+            Accept page
+          </Button>
+        ) : null}
+        {!rescanRequested ? (
+          <Button
+            variant={accepted ? 'secondary' : 'danger'}
+            disabled={reviewPending}
+            onClick={onRequestRescan}
+          >
+            {accepted ? 'Change to rescan' : 'Request rescan'}
+          </Button>
+        ) : null}
+        {rescanRequested ? (
+          <Button variant="secondary" disabled={reviewPending} onClick={onAccept}>
+            Accept anyway
+          </Button>
+        ) : null}
+        <Button variant="secondary" disabled={reviewPending} onClick={onComment}>
+          Add comment
+        </Button>
+        {canReplace ? (
+          <Button variant={rescanRequested ? 'primary' : 'secondary'} onClick={onReplace}>
+            Replace with rescan
+          </Button>
+        ) : null}
+      </div>
+
+      <p className="mt-2 text-[11px] text-ink-2">
+        {accepted
+          ? 'The scan itself is unchanged. Accepting records who decided this page was usable as captured.'
+          : 'Accepting records your name against this page version. It does not alter the scan.'}
+      </p>
+
+      {rescanRequested ? (
+        <p className="mt-2 text-[11px] text-ink-2">
+          Upload the new scan with “Replace with rescan” — the current version stays in history.
+        </p>
+      ) : null}
+    </Panel>
+  );
+}
+
 // ------------------------------------------------------------------ panels
 
 function QualityPanel({
@@ -628,10 +692,11 @@ function QualityPanel({
         <StatusPill view={pageClassView(page.page_class)} showDetail />
       </div>
 
+      {/* The pill itself now reads "… · accepted by reviewer", so this only has to answer the
+          remaining question: why the findings are still listed underneath. */}
       {NEEDS_ATTENTION_CLASSES.includes(page.page_class) && page.review_state === 'accepted' ? (
         <p className="mb-3 rounded border border-rule bg-paper-2 px-2 py-1.5 text-[11px] text-ink-2">
-          This flag stays on record even though the page was accepted — accepting means a reviewer
-          chose to proceed despite it, not that the defect stopped being true.
+          The findings below stay on record. Accepting the page did not change what was measured.
         </p>
       ) : null}
 
