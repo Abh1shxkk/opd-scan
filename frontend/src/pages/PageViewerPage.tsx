@@ -779,7 +779,7 @@ function DiagnosisPanel({ page, onSelect }: { page: PageDetail; onSelect: (id: s
             <li key={d.id} className="border-b border-rule px-2 py-2 last:border-b-0">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusPill view={diagnosisView(d.status)} size="sm" />
-                <StatusPill view={qualifierView(d.qualifier)} size="sm" />
+                <StatusPill view={qualifierView(d.corrected_qualifier ?? d.qualifier)} size="sm" />
                 {!d.is_reviewed ? (
                   <span className="rounded bg-note/[0.07] px-1.5 py-0.5 text-[11px] font-semibold text-ink">
                     AI extraction — not reviewed
@@ -789,7 +789,25 @@ function DiagnosisPanel({ page, onSelect }: { page: PageDetail; onSelect: (id: s
               <p className="mt-1 text-[11px] text-ink-2">
                 Label on the page: “{d.anchor_label || 'unlabelled'}”
               </p>
-              {d.cleaned_text || d.raw_text ? (
+              {/* A correction is what the record now says, so it reads first. The model's own
+                  output stays visible underneath rather than being replaced — that is the whole
+                  point of appending corrections instead of editing in place, and a reader needs to
+                  see what was changed, not just the result. */}
+              {d.corrected_text ? (
+                <div className="mt-1">
+                  <p className="font-mono text-[13px] text-ink">{d.corrected_text}</p>
+                  <p className="mt-0.5 text-[11px] text-ink-2">
+                    Corrected
+                    {d.corrected_by_name ? ` by ${d.corrected_by_name}` : ''}
+                    {d.corrected_at ? ` · ${formatDateTime(d.corrected_at)}` : ''}
+                  </p>
+                  {d.cleaned_text || d.raw_text ? (
+                    <p className="mt-1 font-mono text-[11px] text-ink-2 line-through">
+                      {d.cleaned_text || d.raw_text}
+                    </p>
+                  ) : null}
+                </div>
+              ) : d.cleaned_text || d.raw_text ? (
                 <p className="mt-1 font-mono text-[13px] text-ink">{d.cleaned_text || d.raw_text}</p>
               ) : null}
               <div className="mt-1 flex gap-2">

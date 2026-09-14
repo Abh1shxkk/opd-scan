@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import page_filters
-from app.api.routes.diagnoses import split_safety_context
+from app.api.routes.diagnoses import _reviewer_name, split_safety_context
 from app.core import audit
 from app.core.rbac import current_user, require_reviewer, require_uploader
 from app.core.storage import get_storage
@@ -50,7 +50,7 @@ from app.schemas.api import (
 )
 from app.services import annotate, ingest_service
 from app.services import jobs as job_service
-from app.services.query import PageFilters, active_page_query, count_pages
+from app.services.query import PageFilters, active_page_query, count_pages, latest_correction
 
 router = APIRouter(tags=["pages"])
 
@@ -261,11 +261,26 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
         else None
     )
 
+    # One lookup for every reviewer who corrected any diagnosis on this page, rather than one per
+    # correction. Names matter here: "corrected by a3f9c1e2-…" tells a reader nothing.
+    corrector_ids = {
+        r.reviewer_id
+        for d in pv.diagnoses
+        for r in d.reviews
+        if r.action in ("correct", "reject") and r.reviewer_id
+    }
+    correctors = (
+        {u.id: u for u in db.execute(select(User).where(User.id.in_(corrector_ids))).scalars()}
+        if corrector_ids
+        else {}
+    )
+
     diagnoses = []
     for d in pv.diagnoses:
         # Same split the diagnosis review screen uses, so a reviewer cross-checking one extraction
         # from two screens sees the same safety context in both.
         region, note, cleaning_applied, ambiguous_abbreviations = split_safety_context(d.region_json)
+        correction = latest_correction(d)
         diagnoses.append(
             DiagnosisOut(
                 id=d.id,
@@ -286,6 +301,10 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
                 error=d.error,
                 extracted_at=d.extracted_at,
                 is_reviewed=bool(d.reviews),
+                corrected_text=correction.text,
+                corrected_qualifier=correction.qualifier if correction.text else None,
+                corrected_at=correction.corrected_at,
+                corrected_by_name=_reviewer_name(correctors.get(correction.corrected_by)),
                 reviews=[],
             )
         )

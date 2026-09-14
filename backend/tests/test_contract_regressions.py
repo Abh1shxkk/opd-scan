@@ -105,3 +105,58 @@ def test_replace_returns_the_new_version_identity_only(client, auth, sample_page
     assert set(body) == {"page_version_id", "version_no"}
     assert body["version_no"] == 2
     assert body["page_version_id"] != sample_page.id
+
+
+def test_a_correction_is_visible_wherever_the_diagnosis_is_shown(
+    client, auth, db, storage, batch, users
+):
+    """A correction nobody can see is worse than no correction — it looks like nobody checked.
+
+    The correction was recorded and surfaced in report exports and on its own review screen, while
+    the page viewer and the diagnosis queue kept rendering the model's original reading. Anyone
+    reading the case in the app had no way to know a correction existed.
+    """
+    from app.models import DiagnosisExtraction
+    from app.models.core import DiagnosisStatus, Qualifier
+
+    pv = make_page_version(db, storage, batch=batch, filename="dx2.pdf")
+    extraction = DiagnosisExtraction(
+        page_version_id=pv.id,
+        status=DiagnosisStatus.extracted_pending_review,
+        anchor_label="Final Diagnosis",
+        raw_text="Acute gastritis",
+        cleaned_text="Acute gastritis",
+        qualifier=Qualifier.unspecified,
+    )
+    db.add(extraction)
+    db.commit()
+
+    before = _page_detail(client, auth, pv.id)["diagnoses"][0]
+    assert before["corrected_text"] is None, "nothing is corrected until someone corrects it"
+
+    response = client.post(
+        f"/api/diagnoses/{extraction.id}/review",
+        headers=auth["reviewer"],
+        json={
+            "action": "correct",
+            "corrected_text": "Acute gastroenteritis",
+            "corrected_qualifier": "final",
+            "comment": "misread on the form",
+        },
+    )
+    assert response.status_code == 200
+
+    after = _page_detail(client, auth, pv.id)["diagnoses"][0]
+    assert after["corrected_text"] == "Acute gastroenteritis"
+    assert after["corrected_qualifier"] == "final"
+    assert after["corrected_by_name"], "a reviewer's name, never a bare UUID"
+    assert after["corrected_at"]
+
+    # The model's own output is kept intact alongside it — appending, not overwriting, is the
+    # whole reason corrections are stored as separate rows.
+    assert after["raw_text"] == "Acute gastritis"
+
+    # And the queue agrees with the viewer.
+    listed = client.get("/api/diagnoses", headers=auth["reviewer"]).json()["items"]
+    row = next(d for d in listed if d["id"] == extraction.id)
+    assert row["corrected_text"] == "Acute gastroenteritis"

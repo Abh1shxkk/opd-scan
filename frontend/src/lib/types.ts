@@ -467,6 +467,17 @@ export interface DiagnosisExtraction {
   /** Abbreviations recognised as ambiguous and deliberately NOT expanded. */
   ambiguous_abbreviations?: string[];
   note?: string;
+  /**
+   * What a reviewer corrected this to, if anyone did.
+   *
+   * Additive, never a rewrite: `raw_text` and `cleaned_text` keep the model's own output for as
+   * long as the record exists. `null` means nobody has corrected this, which is deliberately
+   * distinguishable from "corrected to the same words".
+   */
+  corrected_text?: string | null;
+  corrected_qualifier?: Qualifier | null;
+  corrected_at?: string | null;
+  corrected_by_name?: string | null;
   reviews?: DiagnosisReview[];
   is_reviewed?: boolean;
 }

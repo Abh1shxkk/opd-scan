@@ -30,7 +30,7 @@ from app.models import (
 )
 from app.models.core import DiagnosisStatus, Qualifier
 from app.schemas.api import DiagnosisOut, DiagnosisReviewIn, DiagnosisReviewOut
-from app.services.query import PageFilters, active_page_query
+from app.services.query import PageFilters, active_page_query, latest_correction
 
 router = APIRouter(prefix="/diagnoses", tags=["diagnoses"])
 
@@ -77,6 +77,7 @@ def _serialise(d: DiagnosisExtraction, db: Session, include_source: bool = True)
     } if d.reviews else {}
 
     region, note, cleaning_applied, ambiguous_abbreviations = split_safety_context(d.region_json)
+    correction = latest_correction(d)
 
     return DiagnosisOut(
         id=d.id,
@@ -97,6 +98,10 @@ def _serialise(d: DiagnosisExtraction, db: Session, include_source: bool = True)
         error=d.error,
         extracted_at=d.extracted_at,
         is_reviewed=bool(d.reviews),
+        corrected_text=correction.text,
+        corrected_qualifier=correction.qualifier if correction.text else None,
+        corrected_at=correction.corrected_at,
+        corrected_by_name=_reviewer_name(reviewers.get(correction.corrected_by)),
         reviews=[
             DiagnosisReviewOut(
                 id=r.id,

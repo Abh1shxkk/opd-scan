@@ -95,10 +95,23 @@ export default function DiagnosisQueuePage() {
                 </p>
 
                 {/* The raw transcription is what the model actually read; it is shown, not the tidied
-                    version, so a list scan is never one step removed from the source. */}
-                <p className="mt-1 font-mono text-[13px] text-ink">
-                  {d.raw_text || <span className="italic text-ink-2">No text was transcribed.</span>}
-                </p>
+                    version, so a list scan is never one step removed from the source. Once a
+                    reviewer has corrected it, though, the correction is what the record says — and
+                    a queue that kept showing the superseded reading would send the next person to
+                    re-do work that is already done. Both are shown, correction first. */}
+                {d.corrected_text ? (
+                  <>
+                    <p className="mt-1 font-mono text-[13px] text-ink">{d.corrected_text}</p>
+                    <p className="mt-0.5 text-[11px] text-ink-2">
+                      Corrected{d.corrected_by_name ? ` by ${d.corrected_by_name}` : ''} · as read:{' '}
+                      <span className="font-mono line-through">{d.raw_text || '—'}</span>
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-1 font-mono text-[13px] text-ink">
+                    {d.raw_text || <span className="italic text-ink-2">No text was transcribed.</span>}
+                  </p>
+                )}
 
                 {d.ambiguous_abbreviations && d.ambiguous_abbreviations.length > 0 ? (
                   <p className="mt-1 text-[11px] text-ink">

@@ -53,6 +53,51 @@ from app.models.core import (
 )
 from app.processing.quality.rules import DEFECT_LABELS, DEFECT_ORDER
 
+
+@dataclass(frozen=True)
+class LatestCorrection:
+    """What a diagnosis currently reads as, after any reviewer corrections.
+
+    The AI's own output is never overwritten — corrections are appended as DiagnosisReview rows —
+    so "what does this record say now" has to be computed, and it has to be computed the same way
+    everywhere. It previously was not: the exports resolved corrections while the page viewer and
+    the diagnosis list kept rendering the original extraction, so a reviewer's correction was
+    invisible to the next person reading the case in the app. A correction nobody can see is worse
+    than no correction, because it looks like nobody checked.
+
+    ``text`` is None when no correction was made; the caller then falls back to the extraction's
+    own text rather than being handed a copy of it, so "corrected" stays distinguishable from
+    "never touched".
+    """
+
+    text: str | None
+    qualifier: str | None
+    corrected_at: datetime | None
+    corrected_by: str | None
+
+
+def latest_correction(extraction: DiagnosisExtraction) -> LatestCorrection:
+    """Resolve the most recent correction on one extraction. Later reviews win."""
+    text: str | None = None
+    qualifier = _enum_value(extraction.qualifier)
+    corrected_at: datetime | None = None
+    corrected_by: str | None = None
+
+    for review in extraction.reviews:  # ordered by created_at in the model
+        if review.action not in ("correct", "reject"):
+            continue
+        if review.corrected_text:
+            text = review.corrected_text
+            corrected_at = review.created_at
+            corrected_by = review.reviewer_id
+        if review.corrected_qualifier is not None:
+            qualifier = _enum_value(review.corrected_qualifier)
+            corrected_at = review.created_at
+            corrected_by = review.reviewer_id
+
+    return LatestCorrection(text=text, qualifier=qualifier, corrected_at=corrected_at,
+                            corrected_by=corrected_by)
+
 # --------------------------------------------------------------------- columns
 
 #: The export column order, shared by CSV, XLSX, the PDF table and the ZIP manifest so that every
@@ -713,8 +758,8 @@ def _page_row(pv: PageVersion, users: dict[str, User]) -> dict[str, Any]:
     for extraction in extractions:
         if extraction.raw_text:
             raw_parts.append(extraction.raw_text)
-        qualifier = _enum_value(extraction.qualifier)
-        latest_correction = None
+        correction = latest_correction(extraction)
+        qualifier = correction.qualifier
         for review in extraction.reviews:  # ordered by created_at in the model
             reviewer_ids.append(review.reviewer_id)
             if review.comment:
@@ -723,12 +768,8 @@ def _page_row(pv: PageVersion, users: dict[str, User]) -> dict[str, Any]:
                 diag_confirmed = True
             elif review.action in ("correct", "reject"):
                 diag_corrected = True
-                if review.corrected_text:
-                    latest_correction = review.corrected_text
-                if review.corrected_qualifier is not None:
-                    qualifier = _enum_value(review.corrected_qualifier)
-        if latest_correction:
-            reviewed_parts.append(latest_correction)
+        if correction.text:
+            reviewed_parts.append(correction.text)
         if qualifier:
             qualifiers.append(qualifier)
 

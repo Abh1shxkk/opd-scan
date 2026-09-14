@@ -241,6 +241,14 @@ class DiagnosisOut(BaseModel):
     error: str | None
     extracted_at: datetime
     is_reviewed: bool
+    # What a reviewer corrected this to, if anyone did. The extraction's own raw_text/cleaned_text
+    # are never rewritten, so these are additive: null here means "nobody has corrected this",
+    # which must stay distinguishable from "corrected to the same thing". Without them the page
+    # viewer showed the AI's original reading long after a reviewer had fixed it.
+    corrected_text: str | None = None
+    corrected_qualifier: str | None = None
+    corrected_at: datetime | None = None
+    corrected_by_name: str | None = None
     reviews: list["DiagnosisReviewOut"] = []
     # The frontend's DiagnosisDetail type reads this field as `page` (a PageRef shape) — the key
     # and its inner field names must match exactly, not just carry equivalent data.
