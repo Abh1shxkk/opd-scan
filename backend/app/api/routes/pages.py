@@ -7,6 +7,9 @@ look.
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -461,6 +464,44 @@ def review_page(
     }
 
 
+def _first_page_of_pdf(data: bytes, filename: str):
+    """Render a single-page PDF for use as a page replacement.
+
+    Returns (image, source_bits_per_component). Raises 422 with a reason a clerk can act on — the
+    same vocabulary the uploader uses for a rejected file, so "password-protected" reads the same
+    here as it does there.
+    """
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp_path = tmp.name
+            tmp.write(data)
+
+        try:
+            page_count, _ = ingest.probe_container(tmp_path, filename)
+        except ingest.IngestRejected as exc:
+            raise HTTPException(422, exc.message) from exc
+
+        if page_count != 1:
+            raise HTTPException(
+                422,
+                f"This PDF has {page_count} pages. A replacement stands in for one page — scan just "
+                "that sheet, or use the uploader to add the whole document.",
+            )
+
+        try:
+            rendered = next(iter(ingest.iter_pages(tmp_path, filename, read_labels=False)))
+        except ingest.IngestRejected as exc:
+            raise HTTPException(422, exc.message) from exc
+        except StopIteration:
+            raise HTTPException(422, "The PDF reported one page but rendered none.") from None
+
+        return rendered.image, rendered.source_bits_per_component
+    finally:
+        if tmp_path:
+            Path(tmp_path).unlink(missing_ok=True)
+
+
 @router.post("/pages/{page_version_id}/replace")
 async def replace_page(
     page_version_id: str,
@@ -472,16 +513,32 @@ async def replace_page(
 
     The superseded version stays in history and stops being counted; the new one becomes active and
     is re-analysed from scratch.
+
+    Accepts an image or a single-page PDF. The PDF path matters in practice: a ward scanner asked to
+    redo one sheet almost always emits a PDF, and requiring a conversion step first is how a rescan
+    workflow stops being used. A multi-page file is refused rather than silently taking its first
+    page — that is a whole document, and replacing one page with it would quietly discard the rest.
     """
     pv = _load_page(db, page_version_id)
     data = await file.read()
     if not data:
         raise HTTPException(422, "The replacement file is empty")
-    image = ingest.bytes_to_image(data)
-    if image is None:
-        raise HTTPException(422, "The replacement file could not be read as an image")
 
-    version = ingest_service.add_replacement_version(db, pv.logical_page, image, actor.id)
+    name = Path(file.filename or "rescan").name
+    if name.lower().endswith(".pdf"):
+        image, bits = _first_page_of_pdf(data, name)
+    else:
+        image, bits = ingest.bytes_to_image(data), None
+        if image is None:
+            raise HTTPException(
+                422,
+                "The replacement could not be read as an image. Upload a PNG, JPEG or TIFF, or a "
+                "single-page PDF.",
+            )
+
+    version = ingest_service.add_replacement_version(
+        db, pv.logical_page, image, actor.id, bits_per_component=bits
+    )
     audit.record(
         db, actor_id=actor.id, action="page.replace", entity_type="page_version", entity_id=version.id,
         meta={"replaces": pv.id, "version_no": version.version_no},

@@ -227,7 +227,7 @@ export default function ReviewQueuePage() {
                   </span>
                 </div>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  <StatusPill view={pageClassView(p.page_class)} size="sm" />
+                  <StatusPill view={pageClassView(p.page_class, p.review_state)} size="sm" />
                   <StatusPill view={handwritingView(p.handwriting_status)} size="sm" />
                   <StatusPill view={reviewStateView(p.review_state)} size="sm" />
                 </div>

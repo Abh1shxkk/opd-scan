@@ -116,9 +116,27 @@ const PAGE_CLASS: Record<PageClass, StatusView> = {
   },
 };
 
-export function pageClassView(c: PageClass | null | undefined): StatusView {
-  if (!c) return PAGE_CLASS.unchecked;
-  return PAGE_CLASS[c] ?? PAGE_CLASS.unchecked;
+/**
+ * The engine's verdict on a page, optionally qualified by what a human then decided about it.
+ *
+ * The two are independent and both are true: the class is a permanent record of the scan as
+ * captured, and accepting a page never rewrites it. Shown side by side and unexplained, though,
+ * "Rescan required" next to "Accepted" reads as a contradiction — and it was read that way
+ * repeatedly. Rather than repeating a paragraph of explanation on every screen that shows both,
+ * the pill carries it: "Rescan required · accepted by reviewer" is one statement, not two
+ * competing ones.
+ *
+ * `reviewState` is optional so callers that show the class alone are unaffected.
+ */
+export function pageClassView(
+  c: PageClass | null | undefined,
+  reviewState?: ReviewState | null,
+): StatusView {
+  const base = (c ? PAGE_CLASS[c] : undefined) ?? PAGE_CLASS.unchecked;
+  if (reviewState === 'accepted' && c && NEEDS_ATTENTION_CLASSES.includes(c)) {
+    return { ...base, qualifier: 'accepted by reviewer' };
+  }
+  return base;
 }
 
 /** Display order for the quality tiles. `acceptable` first, then the classes it must not absorb. */

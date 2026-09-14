@@ -21,7 +21,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, imagePath } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { CUTOFF_CAVEAT, defectLabel, isCutoff } from '../lib/defects';
@@ -57,6 +57,7 @@ import { PageThumb } from '../components/PageThumb';
 import { Panel } from '../components/Sheet';
 import { StatusPill } from '../components/StatusPill';
 import { Modal } from '../components/Modal';
+import { ReplacePageDialog } from '../components/ReplacePageDialog';
 import { useToast } from '../components/Toast';
 import { Button, DetailRow, ErrorState, Select, Spinner, TextArea } from '../components/ui';
 import { Archive, Check, TriangleAlert } from 'lucide-react';
@@ -129,6 +130,7 @@ export default function PageViewerPage() {
       page={q.data}
       canReview={can('reviewer')}
       canAnalyzePrescription={can('uploader')}
+      canReplace={can('uploader')}
       onReview={(payload) => review.mutate(payload)}
       reviewPending={review.isPending}
       onAnalyzePrescription={() => analyzePrescription.mutate()}
@@ -141,6 +143,7 @@ function ViewerBody({
   page,
   canReview,
   canAnalyzePrescription,
+  canReplace,
   onReview,
   reviewPending,
   onAnalyzePrescription,
@@ -149,6 +152,7 @@ function ViewerBody({
   page: PageDetail;
   canReview: boolean;
   canAnalyzePrescription: boolean;
+  canReplace: boolean;
   onReview: (p: {
     action: PageReviewAction;
     comment?: string;
@@ -158,6 +162,7 @@ function ViewerBody({
   onAnalyzePrescription: () => void;
   analyzingPrescription: boolean;
 }) {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<'original' | 'annotated'>('original');
   const [rotation, setRotation] = useState<Rotation>(0);
   const [zoom, setZoom] = useState(1);
@@ -169,6 +174,7 @@ function ViewerBody({
   });
   const [commentOpen, setCommentOpen] = useState(false);
   const [rescanOpen, setRescanOpen] = useState(false);
+  const [replaceOpen, setReplaceOpen] = useState(false);
   const [correctFinding, setCorrectFinding] = useState<QualityFinding | null>(null);
 
   const paneRef = useRef<HTMLDivElement>(null);
@@ -299,17 +305,12 @@ function ViewerBody({
             {page.encounter_ref ? ` · encounter ${page.encounter_ref}` : ''}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusPill view={pageClassView(page.page_class)} />
-            <StatusPill view={reviewStateView(page.review_state)} />
-          </div>
-          {NEEDS_ATTENTION_CLASSES.includes(page.page_class) && page.review_state === 'accepted' ? (
-            <p className="max-w-xs text-right text-[11px] text-ink-2">
-              The quality engine's flag is a permanent record of the scan as captured — accepting a
-              page does not clear it. It means a reviewer looked and chose to accept it anyway.
-            </p>
-          ) : null}
+        {/* The class pill now carries "accepted by reviewer" itself, so the paragraph that used to
+            explain the pairing here would only repeat it. The fuller reasoning stays once, in the
+            Scan quality panel, next to the findings it is actually about. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill view={pageClassView(page.page_class, page.review_state)} />
+          <StatusPill view={reviewStateView(page.review_state)} />
         </div>
       </header>
 
@@ -505,10 +506,21 @@ function ViewerBody({
                 >
                   Add comment
                 </Button>
+                {canReplace ? (
+                  <Button variant="secondary" onClick={() => setReplaceOpen(true)}>
+                    Replace with rescan
+                  </Button>
+                ) : null}
               </div>
               <p className="mt-2 text-[11px] text-ink-2">
                 Accepting records your name against this page version. It does not alter the scan.
               </p>
+              {page.review_state === 'rescan_requested' ? (
+                <p className="mt-2 text-[11px] text-ink-2">
+                  A rescan was requested for this page. Upload it with “Replace with rescan” — the
+                  current version stays in history.
+                </p>
+              ) : null}
             </Panel>
           ) : null}
 
@@ -579,6 +591,15 @@ function ViewerBody({
           onReview({ action: 'correct_finding', comment, payload });
           setCorrectFinding(null);
         }}
+      />
+      <ReplacePageDialog
+        pageVersionId={page.page_version_id}
+        pageLabel={`Page ${page.ordinal} of ${page.document_filename}`}
+        open={replaceOpen}
+        onClose={() => setReplaceOpen(false)}
+        // The replacement is a different page version with a different id, so staying here would
+        // leave the viewer showing a page that is no longer the active one.
+        onReplaced={(id) => navigate(`/pages/${id}`)}
       />
     </div>
   );

@@ -239,7 +239,7 @@ function PagesTable({ rows }: { rows: PageSummary[] }) {
                         </span>
                       </th>
                       <td className="align-top">
-                        <StatusPill view={pageClassView(p.page_class)} size="sm" />
+                        <StatusPill view={pageClassView(p.page_class, p.review_state)} size="sm" />
                       </td>
                       <td className="align-top">
                         {/* Handwriting is never listed here — it is not a scan-quality defect. */}

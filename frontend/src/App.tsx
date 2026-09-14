@@ -18,6 +18,7 @@ import PatientDetailPage from './pages/PatientDetailPage';
 import UploadPage from './pages/UploadPage';
 import DocumentsPage from './pages/DocumentsPage';
 import PageViewerPage from './pages/PageViewerPage';
+import RescanQueuePage from './pages/RescanQueuePage';
 import ReviewQueuePage from './pages/ReviewQueuePage';
 import ReviewDocumentsPage from './pages/ReviewDocumentsPage';
 import ReviewDocumentPage from './pages/ReviewDocumentPage';
@@ -114,6 +115,14 @@ export default function App() {
                   element={
                     <RequireRole role="reviewer">
                       <ReviewDocumentPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/rescans"
+                  element={
+                    <RequireRole role="reviewer">
+                      <RescanQueuePage />
                     </RequireRole>
                   }
                 />
