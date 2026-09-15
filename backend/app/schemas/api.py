@@ -34,9 +34,15 @@ class UserCreate(BaseModel):
 
     Neither is individually required: staff are often issued a username and no mailbox, and making
     an address mandatory would only produce invented ones.
+
+    ``email`` is a plain string, not ``EmailStr``. Strict validation refuses reserved top-level
+    domains — ``.local``, ``.internal``, ``.test`` — which is exactly what a hospital's internal
+    mail domain looks like, and this deployment's own seeded administrator could not be saved
+    through a form that used it. The address is an identifier to sign in with here, not something
+    this system sends mail to, so it is checked for shape and left alone otherwise.
     """
 
-    email: EmailStr | None = None
+    email: str | None = Field(default=None, max_length=255)
     username: str | None = Field(default=None, max_length=64)
     full_name: str = ""
     password: str = Field(min_length=8)
@@ -46,7 +52,8 @@ class UserCreate(BaseModel):
 class UserPatch(BaseModel):
     # Identifiers are editable, but only one of the two may be cleared — an account with neither
     # could not be signed into and would be unreachable except through the database.
-    email: EmailStr | None = None
+    # A plain string for the same reason as UserCreate: internal hospital domains are valid here.
+    email: str | None = Field(default=None, max_length=255)
     username: str | None = Field(default=None, max_length=64)
     role: str | None = None
     is_active: bool | None = None

@@ -26,6 +26,19 @@ def _normalise(value: str | None) -> str | None:
     return cleaned or None
 
 
+def _check_email_shape(email: str | None) -> None:
+    """A light sanity check in place of strict RFC validation.
+
+    Enough to catch a username typed into the email box, and not so strict that it refuses the
+    internal domains hospitals actually use.
+    """
+    if email is None:
+        return
+    local, _, domain = email.partition("@")
+    if not local or not domain or "." not in domain or " " in email:
+        raise HTTPException(422, f"'{email}' does not look like an email address.")
+
+
 def _by_identifier(db: Session, identifier: str) -> User | None:
     """Find a user by either of the two things they may have been given to sign in with."""
     wanted = _normalise(identifier)
@@ -80,6 +93,7 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(require_admin)):
 def create_user(payload: UserCreate, db: Session = Depends(get_db), actor: User = Depends(require_admin)):
     email = _normalise(payload.email)
     username = _normalise(payload.username)
+    _check_email_shape(email)
     if not email and not username:
         raise HTTPException(422, "A username or an email address is required to sign in with.")
 
@@ -126,6 +140,7 @@ def patch_user(user_id: str, payload: UserPatch, db: Session = Depends(get_db),
         username = _normalise(fields["username"]) if "username" in fields else user.username
         if not email and not username:
             raise HTTPException(422, "A user must keep a username or an email to sign in with.")
+        _check_email_shape(email)
 
         if email != user.email and email:
             clash = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
