@@ -250,7 +250,16 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }),
-  updateUser: (id: string, payload: { role?: string; is_active?: boolean }) =>
+  updateUser: (
+    id: string,
+    payload: {
+      email?: string | null;
+      username?: string | null;
+      full_name?: string;
+      role?: string;
+      is_active?: boolean;
+    },
+  ) =>
     request<User>(`/auth/users/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

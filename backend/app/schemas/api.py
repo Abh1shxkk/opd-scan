@@ -44,6 +44,10 @@ class UserCreate(BaseModel):
 
 
 class UserPatch(BaseModel):
+    # Identifiers are editable, but only one of the two may be cleared — an account with neither
+    # could not be signed into and would be unreachable except through the database.
+    email: EmailStr | None = None
+    username: str | None = Field(default=None, max_length=64)
     role: str | None = None
     is_active: bool | None = None
     full_name: str | None = None

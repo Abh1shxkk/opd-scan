@@ -33,11 +33,21 @@ export function UsersPanel() {
   const toast = useToast();
   const { user: me } = useAuth();
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
 
   const q = useQuery({ queryKey: ['users'], queryFn: () => api.listUsers() });
 
   const update = useMutation({
-    mutationFn: (vars: { id: string; payload: { role?: string; is_active?: boolean } }) =>
+    mutationFn: (vars: {
+      id: string;
+      payload: {
+        email?: string | null;
+        username?: string | null;
+        full_name?: string;
+        role?: string;
+        is_active?: boolean;
+      };
+    }) =>
       api.updateUser(vars.id, vars.payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -68,7 +78,10 @@ export function UsersPanel() {
             user={u}
             isSelf={u.id === me?.id}
             busy={update.isPending}
+            editing={editing === u.id}
+            onEdit={() => setEditing(editing === u.id ? null : u.id)}
             onChange={(payload) => update.mutate({ id: u.id, payload })}
+            onSaved={() => setEditing(null)}
           />
         ))}
       </ul>
@@ -84,15 +97,28 @@ function UserRow({
   user,
   isSelf,
   busy,
+  editing,
+  onEdit,
   onChange,
+  onSaved,
 }: {
   user: User;
   isSelf: boolean;
   busy: boolean;
-  onChange: (payload: { role?: string; is_active?: boolean }) => void;
+  editing: boolean;
+  onEdit: () => void;
+  onChange: (payload: {
+    email?: string | null;
+    username?: string | null;
+    full_name?: string;
+    role?: string;
+    is_active?: boolean;
+  }) => void;
+  onSaved: () => void;
 }) {
   return (
-    <li className="flex flex-wrap items-center gap-3 py-2">
+    <li className="py-2">
+      <div className="flex flex-wrap items-center gap-3">
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-medium text-ink">
           {user.full_name || user.username || user.email}
@@ -131,12 +157,102 @@ function UserRow({
         {user.is_active ? 'Deactivate' : 'Reactivate'}
       </Button>
 
+      <Button variant="secondary" disabled={busy} onClick={onEdit}>
+        {editing ? 'Close' : 'Edit'}
+      </Button>
+
       {!user.is_active ? (
         <span className="shrink-0 border border-rule-2 px-1.5 py-0.5 text-[11px] text-ink-2">
           Inactive
         </span>
       ) : null}
+      </div>
+
+      {editing ? (
+        <EditUserForm user={user} busy={busy} onChange={onChange} onSaved={onSaved} />
+      ) : null}
     </li>
+  );
+}
+
+/**
+ * Change an existing account's name and sign-in identifiers.
+ *
+ * Passwords are not here on purpose: changing someone else's password is a different act from
+ * correcting a typo in their username, and mixing the two into one form invites doing the first by
+ * accident while meaning the second.
+ *
+ * Either identifier may be cleared, but not both — an account with neither could not be signed
+ * into and would be reachable only through the database. The backend refuses it too; this only
+ * stops the attempt reaching it.
+ */
+function EditUserForm({
+  user,
+  busy,
+  onChange,
+  onSaved,
+}: {
+  user: User;
+  busy: boolean;
+  onChange: (payload: { email?: string | null; username?: string | null; full_name?: string }) => void;
+  onSaved: () => void;
+}) {
+  const [username, setUsername] = useState(user.username ?? '');
+  const [email, setEmail] = useState(user.email ?? '');
+  const [fullName, setFullName] = useState(user.full_name ?? '');
+
+  const hasIdentifier = username.trim().length > 0 || email.trim().length > 0;
+  const dirty =
+    username.trim() !== (user.username ?? '') ||
+    email.trim() !== (user.email ?? '') ||
+    fullName.trim() !== (user.full_name ?? '');
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!hasIdentifier || !dirty) return;
+        // Cleared fields are sent as null — an empty string would be stored as an identifier
+        // nobody can sign in with, and two of those would collide.
+        onChange({
+          username: username.trim() || null,
+          email: email.trim() || null,
+          full_name: fullName.trim(),
+        });
+        onSaved();
+      }}
+      className="mt-2 border-t border-rule pt-2"
+    >
+      <div className="grid gap-3 sm:grid-cols-3">
+        <TextInput
+          label="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="off"
+        />
+        <TextInput
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="off"
+        />
+        <TextInput label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Button type="submit" variant="primary" disabled={busy || !dirty || !hasIdentifier}>
+          {busy ? 'Saving…' : 'Save changes'}
+        </Button>
+        {!hasIdentifier ? (
+          <span className="text-[11px] text-ink-2">
+            Keep a username or an email — otherwise nobody can sign in to this account.
+          </span>
+        ) : (
+          <span className="text-[11px] text-ink-2">Passwords are not changed here.</span>
+        )}
+      </div>
+    </form>
   );
 }
 

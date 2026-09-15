@@ -117,6 +117,32 @@ def patch_user(user_id: str, payload: UserPatch, db: Session = Depends(get_db),
     if not user:
         raise HTTPException(404, "User not found")
     changed = []
+
+    # Identifiers first: if either change is refused the account is left exactly as it was, rather
+    # than half-updated with a role applied and a clashing username rejected.
+    fields = payload.model_dump(exclude_unset=True)
+    if "email" in fields or "username" in fields:
+        email = _normalise(fields["email"]) if "email" in fields else user.email
+        username = _normalise(fields["username"]) if "username" in fields else user.username
+        if not email and not username:
+            raise HTTPException(422, "A user must keep a username or an email to sign in with.")
+
+        if email != user.email and email:
+            clash = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+            if clash and clash.id != user.id:
+                raise HTTPException(409, "A user with that email already exists")
+        if username != user.username and username:
+            clash = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+            if clash and clash.id != user.id:
+                raise HTTPException(409, "A user with that username already exists")
+
+        if "email" in fields and email != user.email:
+            user.email = email
+            changed.append("email")
+        if "username" in fields and username != user.username:
+            user.username = username
+            changed.append("username")
+
     if payload.role is not None:
         try:
             user.role = Role(payload.role)
