@@ -16,7 +16,8 @@ class TokenOut(BaseModel):
 
 class UserOut(BaseModel):
     id: str
-    email: str
+    email: str | None = None
+    username: str | None = None
     full_name: str
     role: str
     is_active: bool
@@ -29,7 +30,14 @@ class UserOut(BaseModel):
 
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    """At least one of ``email`` / ``username`` must be given — the route enforces that.
+
+    Neither is individually required: staff are often issued a username and no mailbox, and making
+    an address mandatory would only produce invented ones.
+    """
+
+    email: EmailStr | None = None
+    username: str | None = Field(default=None, max_length=64)
     full_name: str = ""
     password: str = Field(min_length=8)
     role: str = "uploader"

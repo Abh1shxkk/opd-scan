@@ -158,7 +158,12 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    # Either identifier can be used to sign in, and a person may have only one of them. Hospital
+    # staff are routinely issued a username and no mailbox — the legacy records system this
+    # replaces has a nullable email column for exactly that reason — so requiring an address would
+    # have meant inventing fake ones.
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    username: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
     full_name: Mapped[str] = mapped_column(String(255), default="")
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.uploader)

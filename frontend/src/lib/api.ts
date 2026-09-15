@@ -216,9 +216,10 @@ export async function downloadFile(path: string, fallbackName: string): Promise<
 // ------------------------------------------------------------------ auth
 
 export const api = {
-  async login(email: string, password: string): Promise<LoginResponse> {
+  /** `identifier` is an email address or a username — the server matches either. */
+  async login(identifier: string, password: string): Promise<LoginResponse> {
     // The token endpoint is form-encoded (OAuth2 password flow), unlike the rest of the API.
-    const body = new URLSearchParams({ username: email, password });
+    const body = new URLSearchParams({ username: identifier, password });
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -237,7 +238,13 @@ export const api = {
 
   me: () => request<User>('/auth/me'),
   listUsers: () => request<User[]>('/auth/users'),
-  createUser: (payload: { email: string; full_name: string; password: string; role: string }) =>
+  createUser: (payload: {
+    email?: string;
+    username?: string;
+    full_name: string;
+    password: string;
+    role: string;
+  }) =>
     request<User>('/auth/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

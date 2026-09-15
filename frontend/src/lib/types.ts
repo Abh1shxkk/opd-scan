@@ -18,7 +18,9 @@ export type Role = 'admin' | 'uploader' | 'reviewer';
 
 export interface User {
   id: string;
-  email: string;
+  /** Either identifier may be absent — a person needs only one to sign in with. */
+  email: string | null;
+  username: string | null;
   full_name: string;
   role: Role;
   is_active: boolean;

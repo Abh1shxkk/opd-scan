@@ -39,7 +39,8 @@ def _reviewer_name(user: User | None) -> str | None:
     """The name to show against a review. Falls back to the email, never to the UUID."""
     if user is None:
         return None
-    return (user.full_name or "").strip() or user.email
+    # Falls through name → username → email. Any of the three is a person; the id is not.
+    return (user.full_name or "").strip() or user.username or user.email
 
 
 def split_safety_context(

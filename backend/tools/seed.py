@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import or_, select  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
@@ -24,25 +24,42 @@ from app.models import User  # noqa: E402
 from app.models.core import Role  # noqa: E402
 
 
-def upsert(db, email: str, password: str, role: Role, full_name: str) -> str:
-    email = email.lower().strip()
-    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+def upsert(db, identifier: str, password: str, role: Role, full_name: str) -> str:
+    """Create or reset one account, keyed on whichever identifier was given.
+
+    A value containing "@" is treated as an email address and anything else as a username, which is
+    the same guess a person makes looking at a login box. Matching on both columns means re-running
+    the bootstrap with the identifier someone already has resets that account rather than failing on
+    a unique constraint or quietly creating a second one.
+    """
+    identifier = identifier.lower().strip()
+    is_email = "@" in identifier
+    user = db.execute(
+        select(User).where(or_(User.email == identifier, User.username == identifier))
+    ).scalar_one_or_none()
     if user:
         user.password_hash = hash_password(password)
         user.role = role
         user.is_active = True
         db.add(user)
         db.commit()
-        return f"updated {email} ({role.value})"
-    user = User(email=email, full_name=full_name, password_hash=hash_password(password), role=role)
+        return f"updated {identifier} ({role.value})"
+    user = User(
+        email=identifier if is_email else None,
+        username=None if is_email else identifier,
+        full_name=full_name,
+        password_hash=hash_password(password),
+        role=role,
+    )
     db.add(user)
     db.commit()
-    return f"created {email} ({role.value})"
+    return f"created {identifier} ({role.value})"
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--email", required=True)
+    ap.add_argument("--email", required=True,
+                    help="email address or username to sign in with")
     ap.add_argument("--password", default=None, help="omit to be prompted")
     ap.add_argument("--name", default="Administrator")
     ap.add_argument("--role", default="admin", choices=[r.value for r in Role])

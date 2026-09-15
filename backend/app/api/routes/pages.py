@@ -348,7 +348,7 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
         for _u in db.execute(
             select(User).where(User.id.in_([r.reviewer_id for r in pv.reviews]))
         ).scalars():
-            _review_names[_u.id] = (_u.full_name or "").strip() or _u.email
+            _review_names[_u.id] = (_u.full_name or "").strip() or _u.username or _u.email
 
     return PageDetail(
         **base,

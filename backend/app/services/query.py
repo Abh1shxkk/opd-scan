@@ -710,7 +710,7 @@ def _user_label(users: dict[str, User], user_id: str | None) -> str:
     user = users.get(user_id)
     if not user:
         return user_id
-    return user.full_name or user.email or user.id
+    return user.full_name or user.username or user.email or user.id
 
 
 def _page_row(pv: PageVersion, users: dict[str, User]) -> dict[str, Any]:

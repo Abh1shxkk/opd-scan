@@ -15,7 +15,7 @@ interface AuthValue {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
   /** admin implies uploader and reviewer (docs/API.md, Roles). */
   can: (role: Role) => boolean;
@@ -57,8 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [token]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await api.login(email, password);
+  const login = useCallback(async (identifier: string, password: string) => {
+    const res = await api.login(identifier, password);
     setSession(res.access_token, res.user);
     setToken(res.access_token);
     setUser(res.user);

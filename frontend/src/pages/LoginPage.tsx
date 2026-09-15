@@ -18,7 +18,7 @@ export default function LoginPage() {
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? '/dashboard';
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,7 +30,7 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await login(email, password);
+      await login(identifier, password);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed.');
@@ -67,14 +67,16 @@ export default function LoginPage() {
           </h1>
 
           <div className="mt-3 space-y-3">
+            {/* type="text", not "email": staff are issued usernames, and the browser would
+                otherwise refuse a perfectly valid one for not containing an "@". */}
             <TextInput
-              label="Email"
-              type="email"
-              name="email"
+              label="Username or email"
+              type="text"
+              name="username"
               autoComplete="username"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
             />
             <TextInput
               label="Password"

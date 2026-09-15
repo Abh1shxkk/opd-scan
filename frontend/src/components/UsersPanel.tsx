@@ -95,11 +95,12 @@ function UserRow({
     <li className="flex flex-wrap items-center gap-3 py-2">
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-medium text-ink">
-          {user.full_name || user.email}
+          {user.full_name || user.username || user.email}
           {isSelf ? <span className="ml-1.5 text-[11px] text-ink-2">(you)</span> : null}
         </p>
         <p className="truncate text-[11px] text-ink-2">
-          {user.email}
+          {/* Whichever identifiers this person actually has — many staff have only a username. */}
+          {[user.username, user.email].filter(Boolean).join(' · ') || 'no sign-in identifier'}
           {user.created_at ? ` · added ${formatDateTime(user.created_at)}` : ''}
         </p>
       </div>
@@ -143,22 +144,36 @@ function AddUserForm({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<Role>('uploader');
 
   const create = useMutation({
     mutationFn: () =>
-      api.createUser({ email: email.trim(), full_name: fullName.trim(), password, role }),
+      api.createUser({
+        // Only what was filled in is sent; an empty string would be stored as an identifier
+        // nobody can sign in with and would collide with the next blank one.
+        email: email.trim() || undefined,
+        username: username.trim() || undefined,
+        full_name: fullName.trim(),
+        password,
+        role,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.push(`${email.trim()} added. Ask them to change this password on first sign-in.`, 'success');
+      toast.push(
+        `${username.trim() || email.trim()} added. Ask them to change this password on first sign-in.`,
+        'success',
+      );
       onClose();
     },
     onError: (e) => toast.push(e instanceof Error ? e.message : 'Could not add the user.', 'error'),
   });
 
-  const ready = email.trim().length > 0 && password.length >= 8;
+  // One identifier is enough. Requiring an email would mean inventing addresses for staff who
+  // have only ever been issued a username.
+  const ready = (email.trim().length > 0 || username.trim().length > 0) && password.length >= 8;
 
   return (
     <form
@@ -170,14 +185,21 @@ function AddUserForm({ onClose }: { onClose: () => void }) {
     >
       <p className="text-[13px] font-semibold text-ink">New user</p>
 
-      <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <TextInput
-          label="Email"
+          label="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="off"
+          hint="What they sign in with."
+        />
+        <TextInput
+          label="Email (optional)"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          required
           autoComplete="off"
+          hint="Also usable to sign in."
         />
         <TextInput label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
         <TextInput
@@ -207,8 +229,12 @@ function AddUserForm({ onClose }: { onClose: () => void }) {
         <Button type="submit" variant="primary" disabled={!ready || create.isPending}>
           {create.isPending ? 'Adding…' : 'Add user'}
         </Button>
-        {!ready && password.length > 0 && password.length < 8 ? (
+        {password.length > 0 && password.length < 8 ? (
           <span className="self-center text-[11px] text-ink-2">Password needs 8 characters.</span>
+        ) : !username.trim() && !email.trim() ? (
+          <span className="self-center text-[11px] text-ink-2">
+            Give a username or an email address.
+          </span>
         ) : null}
       </div>
     </form>

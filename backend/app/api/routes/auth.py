@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core import audit
@@ -16,9 +16,29 @@ from app.schemas.api import TokenOut, UserCreate, UserOut, UserPatch
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _normalise(value: str | None) -> str | None:
+    """Identifiers are stored and compared lowercased and trimmed.
+
+    Someone typing their username with a capital on a tablet keyboard is not a different person,
+    and a trailing space pasted from a spreadsheet is not either.
+    """
+    cleaned = (value or "").strip().lower()
+    return cleaned or None
+
+
+def _by_identifier(db: Session, identifier: str) -> User | None:
+    """Find a user by either of the two things they may have been given to sign in with."""
+    wanted = _normalise(identifier)
+    if not wanted:
+        return None
+    return db.execute(
+        select(User).where(or_(User.email == wanted, User.username == wanted))
+    ).scalar_one_or_none()
+
+
 @router.post("/login", response_model=TokenOut)
 def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.execute(select(User).where(User.email == form.username.lower().strip())).scalar_one_or_none()
+    user = _by_identifier(db, form.username)
     if not user or not user.is_active or not verify_password(form.password, user.password_hash):
         # Deliberately identical for unknown user, wrong password and disabled account.
         audit.record(
@@ -29,7 +49,7 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Ses
             ip=request.client.host if request.client else None,
         )
         db.commit()
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect username or password")
 
     audit.record(
         db,
@@ -53,14 +73,23 @@ def me(user: User = Depends(current_user)):
 
 @router.get("/users", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    return [UserOut.model_validate(u) for u in db.execute(select(User).order_by(User.email)).scalars()]
+    return [UserOut.model_validate(u) for u in db.execute(select(User).order_by(User.username, User.email)).scalars()]
 
 
 @router.post("/users", response_model=UserOut, status_code=201)
 def create_user(payload: UserCreate, db: Session = Depends(get_db), actor: User = Depends(require_admin)):
-    email = payload.email.lower().strip()
-    if db.execute(select(User).where(User.email == email)).scalar_one_or_none():
+    email = _normalise(payload.email)
+    username = _normalise(payload.username)
+    if not email and not username:
+        raise HTTPException(422, "A username or an email address is required to sign in with.")
+
+    # Checked separately so the message names the one that clashes. "That user already exists" when
+    # only the username collides sends an admin looking at the wrong field.
+    if email and db.execute(select(User).where(User.email == email)).scalar_one_or_none():
         raise HTTPException(409, "A user with that email already exists")
+    if username and db.execute(select(User).where(User.username == username)).scalar_one_or_none():
+        raise HTTPException(409, "A user with that username already exists")
+
     try:
         role = Role(payload.role)
     except ValueError as exc:
@@ -68,6 +97,7 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db), actor: User 
 
     user = User(
         email=email,
+        username=username,
         full_name=payload.full_name,
         password_hash=hash_password(payload.password),
         role=role,
