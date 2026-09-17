@@ -726,8 +726,10 @@ def list_documents(
     status: str | None = None,
     q: str | None = None,
     needs_review: bool = False,
-    limit: int = 100,
-    offset: int = 0,
+    date_from: datetime | None = Query(None, alias="from"),
+    date_to: datetime | None = Query(None, alias="to"),
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     _: User = Depends(current_user),
 ):
@@ -752,6 +754,11 @@ def list_documents(
         stmt = stmt.where(Document.original_filename.ilike(f"%{q}%"))
     if needs_review:
         stmt = stmt.where(_document_has_open_page())
+    # Upload-time window; the client sends UTC instants built from the reviewer's local day/time.
+    if date_from:
+        stmt = stmt.where(Document.uploaded_at >= date_from)
+    if date_to:
+        stmt = stmt.where(Document.uploaded_at <= date_to)
 
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
     rows = db.execute(stmt.limit(limit).offset(offset)).scalars().all()

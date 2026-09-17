@@ -16,23 +16,37 @@ import { useQuery } from '@tanstack/react-query';
 import { ClipboardCheck, FileText } from 'lucide-react';
 import { api } from '../lib/api';
 import { Pager, pageParams } from '../components/Pager';
+import { PageThumb } from '../components/PageThumb';
+import {
+  EMPTY_WORK_FILTER,
+  FileSplit,
+  toUploadWindow,
+  WorkFilters,
+  type WorkFilterValue,
+} from '../components/WorkFilters';
+
 import { formatDateTime, pageClassView, PAGE_CLASS_ORDER } from '../lib/status';
 import type { DocumentSummary, PageClass } from '../lib/types';
 import { BandPlot } from '../components/BandPlot';
 import { ChartHead, MarginNote, Panel } from '../components/Sheet';
 import { StatusPill } from '../components/StatusPill';
-import { Button, EmptyState, ErrorState, Spinner, TextInput } from '../components/ui';
+import { Button, EmptyState, ErrorState, Spinner } from '../components/ui';
 
 export default function ReviewDocumentsPage() {
-  const [q, setQ] = useState('');
+  const [filter, setFilter] = useState<WorkFilterValue>(EMPTY_WORK_FILTER);
+  const q = filter.search;
   const [onlyOpen, setOnlyOpen] = useState(true);
   const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<string | null>(null);
 
   const docs = useQuery({
-    queryKey: ['review-documents', q, onlyOpen, page],
+    queryKey: ['review-documents', filter, onlyOpen, page],
     queryFn: () => {
       const params = new URLSearchParams(pageParams(page));
       if (q.trim()) params.set('q', q.trim());
+      const w = toUploadWindow(filter);
+      if (w.from) params.set('from', w.from);
+      if (w.to) params.set('to', w.to);
       if (onlyOpen) params.set('needs_review', 'true');
       return api.listDocuments(params);
     },
@@ -63,46 +77,27 @@ export default function ReviewDocumentsPage() {
         ]}
       />
 
-      <Panel
-        title="Filter"
-        description="A page that could not be measured is not counted here — it is unmeasured, not un-reviewed."
+      <WorkFilters
+        value={filter}
+        onChange={(next) => {
+          setFilter(next);
+          setPage(1);
+        }}
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <TextInput
-            label="File name"
-            value={q}
-            placeholder="e.g. case-sheet, discharge"
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-          />
-          <div className="flex items-end">
-            <Button
-              variant={onlyOpen ? 'primary' : 'secondary'}
-              onClick={() => {
-                setOnlyOpen((v) => !v);
-                setPage(1);
-              }}
-              aria-pressed={onlyOpen}
-            >
-              {onlyOpen ? 'Outstanding only' : 'All files'}
-            </Button>
-          </div>
-          <div className="flex items-end">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setQ('');
-                setPage(1);
-              }}
-              disabled={!q}
-            >
-              Clear
-            </Button>
-          </div>
-        </div>
-      </Panel>
+        <Button
+          variant={onlyOpen ? 'primary' : 'secondary'}
+          onClick={() => {
+            setOnlyOpen((v) => !v);
+            setPage(1);
+          }}
+          aria-pressed={onlyOpen}
+        >
+          {onlyOpen ? 'Outstanding only' : 'All files'}
+        </Button>
+        <span className="text-[11px] text-ink-2">
+          A page that could not be measured is not counted — it is unmeasured, not un-reviewed.
+        </span>
+      </WorkFilters>
 
       <Pager page={page} total={docs.data?.total} count={rows.length} onPage={setPage} />
 
@@ -120,13 +115,27 @@ export default function ReviewDocumentsPage() {
               </EmptyState>
             </div>
           ) : (
-            <ul className="divide-y divide-rule">
-              {rows.map((d) => (
-                <li key={d.id}>
-                  <DocumentRow doc={d} />
-                </li>
-              ))}
-            </ul>
+            <div className="p-3">
+              <FileSplit
+                groups={rows.map((d) => ({
+                  documentId: d.id,
+                  filename: d.original_filename,
+                  patientRef: d.patient_ref,
+                  uploadedAt: d.uploaded_at,
+                  items: [d],
+                  count: d.awaiting_review ?? 0,
+                }))}
+                selectedId={selected}
+                onSelect={setSelected}
+                countLabel={(n) => `${n} page${n === 1 ? '' : 's'} open`}
+                detail={(g) => (
+                  <div className="sheet">
+                    <DocumentRow doc={g.items[0]} />
+                    <OpenPages documentId={g.documentId} />
+                  </div>
+                )}
+              />
+            </div>
           )}
         </Panel>
       ) : null}
@@ -205,6 +214,49 @@ function DocumentRow({ doc }: { doc: DocumentSummary }) {
           Review file
         </Link>
       </div>
+    </div>
+  );
+}
+
+/** The pages in one file still waiting for a decision, so the reviewer sees them before opening it. */
+function OpenPages({ documentId }: { documentId: string }) {
+  const pages = useQuery({
+    queryKey: ['review-open-pages', documentId],
+    queryFn: () => {
+      const sp = new URLSearchParams({ document_id: documentId, review_state: 'pending', limit: '500' });
+      sp.append('page_class', 'review');
+      sp.append('page_class', 'rescan');
+      return api.listPages(sp);
+    },
+  });
+  const items = pages.data?.items ?? [];
+
+  return (
+    <div className="border-t border-rule p-3">
+      <p className="mb-2 text-[13px] font-semibold text-ink">
+        Pages waiting for a decision{pages.data ? ` (${items.length})` : ''}
+      </p>
+      {pages.isLoading ? <Spinner label="Loading pages…" /> : null}
+      {pages.isError ? <ErrorState error={pages.error} retry={() => pages.refetch()} /> : null}
+      {pages.data && items.length === 0 ? (
+        <p className="text-[13px] text-ink-2">Nothing in this file is waiting.</p>
+      ) : null}
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-2">
+        {items.map((p) => (
+          <li key={p.page_version_id}>
+            <Link to={`/pages/${p.page_version_id}`} className="block" aria-label={`Open page ${p.ordinal}`}>
+              <PageThumb
+                as="div"
+                pageVersionId={p.page_version_id}
+                ordinal={p.ordinal}
+                printedLabel={p.printed_page_label}
+                pageClass={p.page_class}
+                reviewState={p.review_state}
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -163,6 +163,9 @@ def _load(db: Session, extraction_id: str) -> DiagnosisExtraction:
 def list_diagnoses(
     status: str | None = None,
     reviewed: bool | None = None,
+    # Pages where the extractor found no diagnosis label are recorded (so "nothing there" is
+    # distinguishable from "never checked") but are not work for a reviewer; the queue hides them.
+    hide_not_found: bool = False,
     limit: int = 100,
     offset: int = 0,
     f: PageFilters = Depends(page_filters),
@@ -186,6 +189,8 @@ def list_diagnoses(
         stmt = stmt.where(DiagnosisExtraction.status == DiagnosisStatus(status))
     # Filtered in SQL, before paging: filtering the fetched page afterwards made `total` the size
     # of what happened to survive on this page rather than the number that match.
+    if hide_not_found:
+        stmt = stmt.where(DiagnosisExtraction.status != DiagnosisStatus.not_found)
     if reviewed is not None:
         has_review = DiagnosisExtraction.reviews.any()
         stmt = stmt.where(has_review if reviewed else ~has_review)
