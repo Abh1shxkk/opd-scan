@@ -1,4 +1,4 @@
-# OPD Scan QC — Project Context
+I PICKED # OPD Scan QC — Project Context
 
 A complete handoff document. Written to be self-contained: someone with no prior knowledge of this
 codebase should be able to read this and understand what exists, what works, what does not, and
@@ -405,7 +405,7 @@ docs/{SECURITY,DEPLOYMENT,API,EVALUATION,ONPREM}.md
 ## 12. Access
 
 **Live:** http://54.173.64.109
-**Test login:** `admin@local.test` / `OpdTest@2026` (test-only — change before real data)
+**Test login:** `admin@local.test` — password shared privately, not in the repo (must be changed or the account deactivated before real data)
 
 **Database (via SSH tunnel + Adminer):**
 ```bash

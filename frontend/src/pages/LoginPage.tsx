@@ -55,11 +55,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen bg-paper lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+    <main className="grid min-h-screen bg-paper md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       {/* ------------------------------------------------ illustration */}
       <section
         aria-hidden="true"
-        className="relative hidden overflow-hidden bg-chart text-paper lg:flex lg:flex-col lg:justify-between lg:p-12"
+        className="relative hidden overflow-hidden bg-chart text-paper md:flex md:flex-col md:justify-between md:p-8 xl:p-12"
       >
         {/* soft grid texture */}
         <svg className="absolute inset-0 h-full w-full opacity-[0.07]" aria-hidden="true">
@@ -83,7 +83,7 @@ export default function LoginPage() {
         </div>
 
         <div className="relative max-w-[28rem]">
-          <h2 className="text-[28px] font-semibold leading-tight tracking-tight">
+          <h2 className="text-[24px] font-semibold leading-tight tracking-tight xl:text-[28px]">
             Every patient record, scanned right the first time.
           </h2>
           <ul className="mt-6 space-y-3 text-[15px] text-paper/90">
@@ -106,7 +106,7 @@ export default function LoginPage() {
       {/* ------------------------------------------------ form */}
       <section className="flex items-center justify-center p-6 sm:p-10">
         <div className="login-rise w-full max-w-[24rem]">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
+          <div className="mb-8 flex items-center gap-3 md:hidden">
             <span className="grid h-10 w-10 place-items-center rounded-full bg-chart text-paper">
               <ScanLine size={20} strokeWidth={2.25} aria-hidden="true" />
             </span>
