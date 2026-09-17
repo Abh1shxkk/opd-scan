@@ -18,6 +18,7 @@ import type { PageSummary } from '../lib/types';
 import { useAuthedObjectUrl } from '../hooks/useAuthedObjectUrl';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 import { FilterBar } from '../components/FilterBar';
+import { Pager } from '../components/Pager';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Sheet';
 import { StatusPill } from '../components/StatusPill';
@@ -25,7 +26,7 @@ import { useToast } from '../components/Toast';
 import { Button, EmptyState, ErrorState, Spinner, TextArea } from '../components/ui';
 
 export default function ReviewQueuePage() {
-  const { filters, setFilters, reset, params } = useUrlFilters();
+  const { filters, setFilters, reset, params, page, setPage } = useUrlFilters();
   const queryClient = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
@@ -177,7 +178,7 @@ export default function ReviewQueuePage() {
         resultSummary={
           q.isLoading
             ? 'Loading…'
-            : `${rows.length} page${rows.length === 1 ? '' : 's'} in the queue.`
+            : `${q.data?.total ?? rows.length} page${(q.data?.total ?? rows.length) === 1 ? '' : 's'} in the queue.`
         }
       />
 
@@ -185,6 +186,16 @@ export default function ReviewQueuePage() {
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
+
+      <Pager
+        page={page}
+        total={q.data?.total}
+        count={rows.length}
+        onPage={(p) => {
+          setIndex(0);
+          setPage(p);
+        }}
+      />
 
       {q.isLoading ? <Spinner label="Loading the queue…" /> : null}
       {q.isError ? <ErrorState error={q.error} retry={() => q.refetch()} /> : null}

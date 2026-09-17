@@ -15,12 +15,13 @@ import type { DiagnosisExtraction } from '../lib/types';
 import { FilterBar } from '../components/FilterBar';
 import { StatusPill } from '../components/StatusPill';
 import { EmptyState, ErrorState, Spinner } from '../components/ui';
+import { Pager } from '../components/Pager';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 import { UnreviewedBadge } from '../components/UnreviewedBadge';
 import { TriangleAlert } from 'lucide-react';
 
 export default function DiagnosisQueuePage() {
-  const { filters, setFilters, reset, params } = useUrlFilters();
+  const { filters, setFilters, reset, params, page, setPage } = useUrlFilters();
   const [onlyUnreviewed, setOnlyUnreviewed] = useState(true);
 
   const queryParams = useMemo(() => {
@@ -50,18 +51,23 @@ export default function DiagnosisQueuePage() {
         value={filters}
         onChange={setFilters}
         onReset={reset}
-        resultSummary={q.isLoading ? 'Loading…' : `${rows.length} extraction${rows.length === 1 ? '' : 's'} listed.`}
+        resultSummary={q.isLoading ? 'Loading…' : `${q.data?.total ?? rows.length} extraction${(q.data?.total ?? rows.length) === 1 ? '' : 's'} match.`}
       />
 
       <label className="flex items-center gap-2 text-[13px] text-ink">
         <input
           type="checkbox"
           checked={onlyUnreviewed}
-          onChange={(e) => setOnlyUnreviewed(e.target.checked)}
+          onChange={(e) => {
+            setOnlyUnreviewed(e.target.checked);
+            setPage(1);
+          }}
           className="h-4 w-4 rounded border-rule-2 text-chart focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
         />
         Show only extractions that no one has reviewed
       </label>
+
+      <Pager page={page} total={q.data?.total} count={rows.length} onPage={setPage} />
 
       {q.isLoading ? <Spinner /> : null}
       {q.isError ? <ErrorState error={q.error} retry={() => q.refetch()} /> : null}

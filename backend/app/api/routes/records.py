@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -202,14 +202,7 @@ def _case_detail(db: Session, case: Case) -> CaseOut:
     return case_out(case, len(docs), pages, first_pv, pending, measured, jobs, failed)
 
 
-@router.get("/cases", response_model=list[CaseOut])
-def list_cases(
-    batch_id: str | None = None,
-    patient_ref: str | None = None,
-    encounter_ref: str | None = None,
-    db: Session = Depends(get_db),
-    _: User = Depends(current_user),
-):
+def _cases_stmt(batch_id, patient_ref, encounter_ref, created_from, created_to):
     stmt = select(Case).order_by(Case.created_at.desc())
     if batch_id:
         stmt = stmt.where(Case.batch_id == batch_id)
@@ -217,7 +210,57 @@ def list_cases(
         stmt = stmt.where(Case.patient_ref.ilike(f"%{patient_ref}%"))
     if encounter_ref:
         stmt = stmt.where(Case.encounter_ref.ilike(f"%{encounter_ref}%"))
-    cases = list(db.execute(stmt).scalars())
+    # Entry-time window. The client converts its local day/time to UTC instants, so "records
+    # entered on the 17th" means the clerk's 17th, not the server's.
+    if created_from:
+        stmt = stmt.where(Case.created_at >= created_from)
+    if created_to:
+        stmt = stmt.where(Case.created_at <= created_to)
+    return stmt
+
+
+@router.get("/cases", response_model=list[CaseOut])
+def list_cases(
+    batch_id: str | None = None,
+    patient_ref: str | None = None,
+    encounter_ref: str | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_user),
+):
+    stmt = _cases_stmt(batch_id, patient_ref, encounter_ref, created_from, created_to)
+    return _serialise_cases(db, list(db.execute(stmt).scalars()))
+
+
+@router.get("/cases/paged")
+def list_cases_paged(
+    batch_id: str | None = None,
+    patient_ref: str | None = None,
+    encounter_ref: str | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    _: User = Depends(current_user),
+):
+    """One page of patient records plus the total matching and the total in the database, so the
+    list screen never loads the whole archive at once."""
+    stmt = _cases_stmt(batch_id, patient_ref, encounter_ref, created_from, created_to)
+    total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
+    grand_total = db.execute(select(func.count(Case.id))).scalar() or 0
+    cases = list(db.execute(stmt.limit(limit).offset(offset)).scalars())
+    return {
+        "items": [c.model_dump() for c in _serialise_cases(db, cases)],
+        "total": total,
+        "grand_total": grand_total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+def _serialise_cases(db: Session, cases: list[Case]) -> list[CaseOut]:
     if not cases:
         return []
 

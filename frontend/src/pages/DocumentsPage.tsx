@@ -26,8 +26,9 @@ import {
 import type { DocumentSummary, PageSummary } from '../lib/types';
 import { CompletenessPanel } from '../components/CompletenessPanel';
 import { FilterBar } from '../components/FilterBar';
+import { Pager } from '../components/Pager';
 import { StatusPill } from '../components/StatusPill';
-import { Button, EmptyState, ErrorState, Spinner } from '../components/ui';
+import { EmptyState, ErrorState, Spinner } from '../components/ui';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 
 type Tab = 'pages' | 'documents';
@@ -59,7 +60,6 @@ export default function DocumentsPage() {
   const active = tab === 'pages' ? pagesQuery : docsQuery;
   const total = active.data?.total ?? 0;
   const pageSize = active.data?.limit ?? 50;
-  const lastPage = Math.max(1, Math.ceil(total / Math.max(pageSize, 1)));
 
   return (
     <div className="space-y-4">
@@ -123,19 +123,13 @@ export default function DocumentsPage() {
         <DocumentsTable rows={docsQuery.data.items} />
       ) : null}
 
-      {total > pageSize ? (
-        <nav aria-label="Pagination" className="flex items-center justify-between gap-3">
-          <Button variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-            ← Previous
-          </Button>
-          <p className="text-[13px] text-ink-2" aria-live="polite">
-            Page {page} of {lastPage}
-          </p>
-          <Button variant="secondary" disabled={page >= lastPage} onClick={() => setPage(page + 1)}>
-            Next →
-          </Button>
-        </nav>
-      ) : null}
+      <Pager
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        count={(tab === 'pages' ? pagesQuery.data?.items.length : docsQuery.data?.items.length) ?? 0}
+        onPage={setPage}
+      />
     </div>
   );
 }

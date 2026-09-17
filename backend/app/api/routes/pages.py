@@ -602,13 +602,14 @@ def list_jobs(
     kind: str | None = None,
     document_id: str | None = None,
     limit: int = 100,
+    offset: int = 0,
     db: Session = Depends(get_db),
     _: User = Depends(current_user),
 ):
     from app.models import Job
     from app.models.core import JobState
 
-    stmt = select(Job).order_by(Job.queued_at.desc()).limit(limit)
+    stmt = select(Job).order_by(Job.queued_at.desc()).limit(min(max(limit, 1), 500)).offset(max(offset, 0))
     if state:
         stmt = stmt.where(Job.state == JobState(state))
     if kind:

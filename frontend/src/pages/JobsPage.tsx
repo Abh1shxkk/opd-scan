@@ -14,6 +14,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { Pager, PAGE_SIZE } from '../components/Pager';
 import { useAuth } from '../lib/auth';
 import { formatDateTime, jobView } from '../lib/status';
 import type { Job, JobState } from '../lib/types';
@@ -30,15 +31,29 @@ const REPROCESSABLE = new Set(['quality', 'handwriting', 'diagnosis', 'prescript
 export default function JobsPage() {
   const [params, setParams] = useSearchParams();
   const state = (params.get('state') as JobState | 'all' | null) ?? 'failed';
+  const page = Number(params.get('page') ?? '1') || 1;
+  function setPage(p: number) {
+    const sp = new URLSearchParams(params);
+    if (p > 1) sp.set('page', String(p));
+    else sp.delete('page');
+    setParams(sp);
+  }
 
   const q = useQuery({
-    queryKey: ['jobs', state],
-    queryFn: () => api.listJobs(state === 'all' ? {} : { state }),
+    queryKey: ['jobs', state, page],
+    // One extra row tells us whether a next page exists; the jobs endpoint reports no total.
+    queryFn: () =>
+      api.listJobs({
+        ...(state === 'all' ? {} : { state }),
+        limit: String(PAGE_SIZE + 1),
+        offset: String((page - 1) * PAGE_SIZE),
+      }),
     // Queued and running work moves on its own; failed does not.
     refetchInterval: state === 'queued' || state === 'running' ? 5000 : false,
   });
 
-  const jobs = useMemo(() => q.data ?? [], [q.data]);
+  const hasMore = (q.data?.length ?? 0) > PAGE_SIZE;
+  const jobs = useMemo(() => (q.data ?? []).slice(0, PAGE_SIZE), [q.data]);
 
   return (
     <div className="space-y-4">
@@ -69,6 +84,8 @@ export default function JobsPage() {
           </button>
         ))}
       </nav>
+
+      <Pager page={page} count={jobs.length} hasMore={hasMore} onPage={setPage} />
 
       {q.isLoading ? <Spinner label="Loading jobs…" /> : null}
       {q.isError ? <ErrorState error={q.error} retry={() => q.refetch()} /> : null}

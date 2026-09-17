@@ -636,8 +636,9 @@ function ReviewerActions({
             variant={accepted ? 'secondary' : 'danger'}
             disabled={reviewPending}
             onClick={onRequestRescan}
+            title="Only marks the page. It moves to Awaiting rescan until someone uploads a new scan."
           >
-            {accepted ? 'Change to rescan' : 'Request rescan'}
+            {accepted ? 'Mark as needs rescan' : 'Request rescan'}
           </Button>
         ) : null}
         {rescanRequested ? (
@@ -649,8 +650,12 @@ function ReviewerActions({
           Add comment
         </Button>
         {canReplace ? (
-          <Button variant={rescanRequested ? 'primary' : 'secondary'} onClick={onReplace}>
-            Replace with rescan
+          <Button
+            variant={rescanRequested ? 'primary' : 'secondary'}
+            onClick={onReplace}
+            title="Upload the re-scanned page now. The current scan is kept in version history."
+          >
+            Upload new scan
           </Button>
         ) : null}
       </div>
@@ -663,7 +668,7 @@ function ReviewerActions({
 
       {rescanRequested ? (
         <p className="mt-2 text-[11px] text-ink-2">
-          Upload the new scan with “Replace with rescan” — the current version stays in history.
+          Upload the new scan with “Upload new scan” — the current version stays in history.
         </p>
       ) : null}
     </Panel>

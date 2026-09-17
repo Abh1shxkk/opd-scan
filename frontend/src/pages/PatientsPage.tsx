@@ -26,6 +26,7 @@ import type { Case, CasePatch } from '../lib/types';
 import { ChartHead, MarginNote, Panel } from '../components/Sheet';
 import { isWorking, ProcessingState } from '../components/ProcessingState';
 import { Modal } from '../components/Modal';
+import { Pager, pageParams } from '../components/Pager';
 import { useToast } from '../components/Toast';
 import { Button, EmptyState, ErrorState, Select, Spinner, TextInput } from '../components/ui';
 
@@ -39,23 +40,6 @@ function DateCell({ value }: { value: string | null }) {
 function Text({ value }: { value: string }) {
   if (!value) return <span className="text-ink-2">—</span>;
   return <>{value}</>;
-}
-
-function pad(n: number) {
-  return String(n).padStart(2, '0');
-}
-
-/** Whether a record's entry time falls on `day` (YYYY-MM-DD) and within [from, to] (HH:MM), local time. */
-function matchesEntered(createdAt: string | null | undefined, day: string, from: string, to: string) {
-  if (!day && !from && !to) return true;
-  if (!createdAt) return false;
-  const d = new Date(createdAt);
-  if (Number.isNaN(d.getTime())) return false;
-  if (day && `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` !== day) return false;
-  const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  if (from && hm < from) return false;
-  if (to && hm > to) return false;
-  return true;
 }
 
 export default function PatientsPage() {
@@ -73,29 +57,36 @@ export default function PatientsPage() {
   const [editing, setEditing] = useState<Case | null>(null);
   const [deleting, setDeleting] = useState<Case | null>(null);
 
+  const [page, setPage] = useState(1);
+
+  // The chosen day and times are the clerk's local time; the API compares UTC instants.
+  const entryWindow = useMemo(() => {
+    if (!day) return {};
+    return {
+      created_from: new Date(`${day}T${fromTime || '00:00'}:00`).toISOString(),
+      created_to: new Date(`${day}T${toTime || '23:59'}:59.999`).toISOString(),
+    };
+  }, [day, fromTime, toTime]);
+
   const q = useQuery({
-    queryKey: ['cases', mr, ipd],
+    queryKey: ['cases', 'paged', mr, ipd, entryWindow, page],
     queryFn: () =>
-      api.listCases({
+      api.listCasesPaged({
         patient_ref: mr.trim() || undefined,
         encounter_ref: ipd.trim() || undefined,
+        ...entryWindow,
+        ...pageParams(page),
       }),
+    placeholderData: (prev) => prev,
     // The analysis runs on a worker, so the list refreshes itself while anything is outstanding
     // and then stops. Polling a settled archive forever would be a request per clerk per 4s for
     // no new information.
-    refetchInterval: (query) =>
-      (query.state.data ?? []).some(isWorking) ? 4000 : false,
+    refetchInterval: (query) => ((query.state.data?.items ?? []).some(isWorking) ? 4000 : false),
   });
 
-  // Total in the database, independent of every filter on this screen. Shares its cache entry
-  // with the unfiltered list, so it costs nothing extra when no search is typed.
-  const total = useQuery({ queryKey: ['cases', '', ''], queryFn: () => api.listCases({}) });
-
-  const dateFiltered = Boolean(day || fromTime || toTime);
-  const rows = useMemo(
-    () => (q.data ?? []).filter((c) => matchesEntered(c.created_at, day, fromTime, toTime)),
-    [q.data, day, fromTime, toTime],
-  );
+  const dateFiltered = Boolean(day);
+  const rows = useMemo(() => q.data?.items ?? [], [q.data]);
+  const matching = q.data?.total ?? 0;
   const withScans = useMemo(() => rows.filter((c) => c.page_count > 0).length, [rows]);
   const working = useMemo(() => rows.filter(isWorking).length, [rows]);
 
@@ -107,11 +98,11 @@ export default function PatientsPage() {
         meta={[
           {
             label: 'Total records',
-            value: <span className="tabular-nums">{total.data ? total.data.length : '…'}</span>,
+            value: <span className="tabular-nums">{q.data ? q.data.grand_total : '…'}</span>,
           },
           {
-            label: day ? `Entered on ${day}` : 'Records in view',
-            value: <span className="tabular-nums">{rows.length}</span>,
+            label: day ? `Entered on ${day}` : 'Matching records',
+            value: <span className="tabular-nums">{matching}</span>,
           },
           { label: 'With scans attached', value: <span className="tabular-nums">{withScans}</span> },
           {
@@ -140,39 +131,56 @@ export default function PatientsPage() {
 
       <Panel
         title="Find a record"
-        description="MR and IPD match on any part of the number. Date and time filter on when the record was entered."
+        description="MR and IPD match on any part of the number. Date and time filter on when the record was entered — choose a date first, then optionally a time range."
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <TextInput
             label="MR number"
             value={mr}
             placeholder="e.g. 201409221237"
-            onChange={(e) => setMr(e.target.value)}
+            onChange={(e) => {
+              setMr(e.target.value);
+              setPage(1);
+            }}
           />
           <TextInput
             label="IPD number"
             value={ipd}
             placeholder="e.g. IP.140922103"
-            onChange={(e) => setIpd(e.target.value)}
+            onChange={(e) => {
+              setIpd(e.target.value);
+              setPage(1);
+            }}
           />
           <TextInput
             label="Entered on"
             type="date"
             value={day}
-            onChange={(e) => setDay(e.target.value)}
+            onChange={(e) => {
+              setDay(e.target.value);
+              setPage(1);
+            }}
           />
           <div className="grid grid-cols-2 gap-2">
             <TextInput
               label="From time"
               type="time"
+              disabled={!day}
               value={fromTime}
-              onChange={(e) => setFromTime(e.target.value)}
+              onChange={(e) => {
+              setFromTime(e.target.value);
+              setPage(1);
+            }}
             />
             <TextInput
               label="To time"
               type="time"
+              disabled={!day}
               value={toTime}
-              onChange={(e) => setToTime(e.target.value)}
+              onChange={(e) => {
+              setToTime(e.target.value);
+              setPage(1);
+            }}
             />
           </div>
           <div className="flex items-end">
@@ -184,6 +192,7 @@ export default function PatientsPage() {
                 setDay('');
                 setFromTime('');
                 setToTime('');
+                setPage(1);
               }}
               disabled={!mr && !ipd && !dateFiltered}
             >
@@ -195,6 +204,8 @@ export default function PatientsPage() {
 
       {q.isLoading ? <Spinner label="Loading patient records…" /> : null}
       {q.isError ? <ErrorState error={q.error} retry={() => q.refetch()} /> : null}
+
+      <Pager page={page} total={q.data?.total} count={rows.length} onPage={setPage} />
 
       {q.data ? (
         <Panel

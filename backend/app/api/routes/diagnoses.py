@@ -13,7 +13,7 @@ The rules enforced here are the ones that matter clinically:
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import page_filters
@@ -181,20 +181,24 @@ def list_diagnoses(
             .selectinload(Document.case),
         )
         .order_by(DiagnosisExtraction.extracted_at.desc())
-        .limit(limit)
-        .offset(offset)
     )
     if status:
         stmt = stmt.where(DiagnosisExtraction.status == DiagnosisStatus(status))
-
-    rows = list(db.execute(stmt).scalars().unique())
+    # Filtered in SQL, before paging: filtering the fetched page afterwards made `total` the size
+    # of what happened to survive on this page rather than the number that match.
     if reviewed is not None:
-        rows = [d for d in rows if bool(d.reviews) is reviewed]
+        has_review = DiagnosisExtraction.reviews.any()
+        stmt = stmt.where(has_review if reviewed else ~has_review)
+
+    total = db.execute(
+        select(func.count()).select_from(stmt.order_by(None).subquery())
+    ).scalar() or 0
+    rows = list(db.execute(stmt.limit(limit).offset(offset)).scalars().unique())
     # A plain array here means the frontend's `data.items` is always undefined — wrapped to match
     # the Paged<T> contract every other list endpoint (/pages, /documents) already follows.
     return {
         "items": [_serialise(d, db) for d in rows],
-        "total": len(rows),
+        "total": total,
         "limit": limit,
         "offset": offset,
     }

@@ -15,6 +15,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ClipboardCheck, FileText } from 'lucide-react';
 import { api } from '../lib/api';
+import { Pager, pageParams } from '../components/Pager';
 import { formatDateTime, pageClassView, PAGE_CLASS_ORDER } from '../lib/status';
 import type { DocumentSummary, PageClass } from '../lib/types';
 import { BandPlot } from '../components/BandPlot';
@@ -25,11 +26,12 @@ import { Button, EmptyState, ErrorState, Spinner, TextInput } from '../component
 export default function ReviewDocumentsPage() {
   const [q, setQ] = useState('');
   const [onlyOpen, setOnlyOpen] = useState(true);
+  const [page, setPage] = useState(1);
 
   const docs = useQuery({
-    queryKey: ['review-documents', q, onlyOpen],
+    queryKey: ['review-documents', q, onlyOpen, page],
     queryFn: () => {
-      const params = new URLSearchParams({ limit: '100' });
+      const params = new URLSearchParams(pageParams(page));
       if (q.trim()) params.set('q', q.trim());
       if (onlyOpen) params.set('needs_review', 'true');
       return api.listDocuments(params);
@@ -70,24 +72,39 @@ export default function ReviewDocumentsPage() {
             label="File name"
             value={q}
             placeholder="e.g. case-sheet, discharge"
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
           />
           <div className="flex items-end">
             <Button
               variant={onlyOpen ? 'primary' : 'secondary'}
-              onClick={() => setOnlyOpen((v) => !v)}
+              onClick={() => {
+                setOnlyOpen((v) => !v);
+                setPage(1);
+              }}
               aria-pressed={onlyOpen}
             >
               {onlyOpen ? 'Outstanding only' : 'All files'}
             </Button>
           </div>
           <div className="flex items-end">
-            <Button variant="secondary" onClick={() => setQ('')} disabled={!q}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setQ('');
+                setPage(1);
+              }}
+              disabled={!q}
+            >
               Clear
             </Button>
           </div>
         </div>
       </Panel>
+
+      <Pager page={page} total={docs.data?.total} count={rows.length} onPage={setPage} />
 
       {docs.isLoading ? <Spinner label="Loading the queue…" /> : null}
       {docs.isError ? <ErrorState error={docs.error} retry={() => docs.refetch()} /> : null}

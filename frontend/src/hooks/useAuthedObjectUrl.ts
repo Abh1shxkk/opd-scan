@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { fetchObjectUrl } from '../lib/api';
+import { cachedObjectUrl, fetchObjectUrl } from '../lib/api';
 
 export interface AuthedImage {
   url: string | null;
@@ -26,6 +26,11 @@ export function useAuthedObjectUrl(path: string | null | undefined): AuthedImage
     }
     let cancelled = false;
     let created: string | null = null;
+    const instant = cachedObjectUrl(path);
+    if (instant) {
+      setState({ url: instant, loading: false, error: null });
+      return () => URL.revokeObjectURL(instant);
+    }
     setState({ url: null, loading: true, error: null });
 
     fetchObjectUrl(path)

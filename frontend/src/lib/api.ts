@@ -98,6 +98,12 @@ export function clearSession(): void {
   } catch {
     /* ignore */
   }
+  imageMemory.clear();
+  try {
+    void caches?.delete(IMAGE_CACHE);
+  } catch {
+    /* ignore */
+  }
 }
 
 // ---------------------------------------------------------------- core
@@ -169,7 +175,39 @@ function qs(params: Record<string, unknown> | URLSearchParams | undefined): stri
  * The caller MUST revoke the URL when it is done (see `useAuthedObjectUrl`). Images cannot be
  * loaded with a bare `src` because every file route is role-checked and expects the header.
  */
+/**
+ * Page images are immutable per page version — a rescan creates a new version id — so thumbnails,
+ * previews and renders are kept in memory for the session and in the browser's Cache Storage across
+ * reloads. Without this every refresh re-downloaded every thumbnail and the preview. Annotated
+ * images are not cached: their overlays change when a review or finding changes. The cache is
+ * dropped on sign-out, since these are patient images.
+ */
+const IMAGE_CACHE = 'page-images-v1';
+const imageMemory = new Map<string, Blob>();
+const CACHEABLE = /^\/pages\/[^/]+\/(thumb|preview|image)$/;
+
+/** A blob URL for an image already held in memory, so a remount can render without a flash. */
+export function cachedObjectUrl(path: string): string | null {
+  const blob = imageMemory.get(path);
+  return blob ? URL.createObjectURL(blob) : null;
+}
+
 export async function fetchObjectUrl(path: string): Promise<string> {
+  const cacheable = CACHEABLE.test(path);
+  if (cacheable) {
+    const inMemory = imageMemory.get(path);
+    if (inMemory) return URL.createObjectURL(inMemory);
+    try {
+      const hit = await (await caches.open(IMAGE_CACHE)).match(path);
+      if (hit) {
+        const blob = await hit.blob();
+        imageMemory.set(path, blob);
+        return URL.createObjectURL(blob);
+      }
+    } catch {
+      /* Cache Storage unavailable (private window, http origin): fall through to the network. */
+    }
+  }
   const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders() });
   if (res.status === 401) {
     clearSession();
@@ -180,7 +218,19 @@ export async function fetchObjectUrl(path: string): Promise<string> {
     const { message } = await readError(res);
     throw new ApiError(res.status, message);
   }
-  return URL.createObjectURL(await res.blob());
+  const blob = await res.blob();
+  if (cacheable) {
+    imageMemory.set(path, blob);
+    try {
+      await (await caches.open(IMAGE_CACHE)).put(
+        path,
+        new Response(blob, { headers: { 'Content-Type': blob.type } }),
+      );
+    } catch {
+      /* ignore — the memory copy still serves this session */
+    }
+  }
+  return URL.createObjectURL(blob);
 }
 
 /**
@@ -280,6 +330,14 @@ export const api = {
 
   listCases: (params?: { batch_id?: string; patient_ref?: string; encounter_ref?: string }) =>
     request<Case[]>(`/cases${qs(params)}`),
+  listCasesPaged: (params: {
+    patient_ref?: string;
+    encounter_ref?: string;
+    created_from?: string;
+    created_to?: string;
+    limit: string;
+    offset: string;
+  }) => request<Paged<Case> & { grand_total: number }>(`/cases/paged${qs(params)}`),
   createCase: (payload: {
     batch_id: string;
     patient_ref: string;
@@ -600,7 +658,13 @@ export const api = {
   getDashboard: (params: URLSearchParams) => request<DashboardResponse>(`/dashboard${qs(params)}`),
 
   /** Returns a plain array — /jobs is one of the few list endpoints with no Paged wrapper. */
-  listJobs: (params?: { state?: string; kind?: string; document_id?: string }) =>
+  listJobs: (params?: {
+    state?: string;
+    kind?: string;
+    document_id?: string;
+    limit?: string;
+    offset?: string;
+  }) =>
     request<Job[]>(`/jobs${qs(params)}`),
   cancelJob: (id: string) => request<Job>(`/jobs/${id}/cancel`, { method: 'POST' }),
 

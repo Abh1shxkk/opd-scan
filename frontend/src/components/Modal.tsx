@@ -83,15 +83,18 @@ export function Modal({
 
   if (!open) return null;
 
-  const width = size === 'sm' ? 'max-w-md' : size === 'lg' ? 'max-w-3xl' : 'max-w-xl';
+    // Sized generously and centred: these dialogs carry decisions about patient records, and a small
+  // box pinned to the top of the screen was being dismissed without being read.
+  const width = size === 'sm' ? 'max-w-lg' : size === 'lg' ? 'max-w-4xl' : 'max-w-2xl';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8">
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       <div
         className="scrim fixed inset-0 backdrop-blur-[1px]"
         aria-hidden="true"
         onClick={onClose}
       />
+      <div className="flex min-h-full items-center justify-center p-4 sm:p-8">
       <div
         ref={panelRef}
         role="dialog"
@@ -100,15 +103,15 @@ export function Modal({
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className={`relative z-10 w-full ${width} sheet focus:outline-none`}
+        className={`relative z-10 w-full ${width} sheet shadow-2xl focus:outline-none`}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-rule p-4">
+        <div className="flex items-start justify-between gap-4 border-b border-rule p-5">
           <div>
-            <h2 id={titleId} className="text-[15px] font-semibold tracking-tight text-ink">
+            <h2 id={titleId} className="text-[18px] font-semibold tracking-tight text-ink">
               {title}
             </h2>
             {description ? (
-              <p id={descId} className="mt-1 text-[13px] text-ink-2">
+              <p id={descId} className="mt-1 text-[14px] text-ink-2">
                 {description}
               </p>
             ) : null}
@@ -124,12 +127,13 @@ export function Modal({
             <span className="sr-only">Close dialog</span>
           </button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="p-5 text-[14px]">{children}</div>
         {footer ? (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-rule p-4">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-rule p-5">
             {footer}
           </div>
         ) : null}
+      </div>
       </div>
     </div>
   );

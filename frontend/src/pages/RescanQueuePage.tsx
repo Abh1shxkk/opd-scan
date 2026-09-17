@@ -17,6 +17,7 @@ import { useAuth } from '../lib/auth';
 import { formatDateTime, pageClassView } from '../lib/status';
 import type { PageSummary } from '../lib/types';
 import { PageThumb } from '../components/PageThumb';
+import { Pager, pageParams } from '../components/Pager';
 import { ReplacePageDialog } from '../components/ReplacePageDialog';
 import { Panel } from '../components/Sheet';
 import { StatusPill } from '../components/StatusPill';
@@ -25,13 +26,16 @@ import { Button, ErrorState, Spinner } from '../components/ui';
 export default function RescanQueuePage() {
   const { can } = useAuth();
   const [replacing, setReplacing] = useState<PageSummary | null>(null);
+  const [page, setPage] = useState(1);
 
   const params = useMemo(() => {
     const sp = new URLSearchParams();
     sp.set('review_state', 'rescan_requested');
-    sp.set('limit', '200');
+    const { limit, offset } = pageParams(page);
+    sp.set('limit', limit);
+    sp.set('offset', offset);
     return sp;
-  }, []);
+  }, [page]);
 
   const q = useQuery({
     queryKey: ['rescan-queue', params.toString()],
@@ -57,7 +61,7 @@ export default function RescanQueuePage() {
 
       {!q.isLoading && !q.isError ? (
         <Panel
-          title={`${rows.length} page${rows.length === 1 ? '' : 's'} waiting`}
+          title={`${q.data?.total ?? rows.length} page${(q.data?.total ?? rows.length) === 1 ? '' : 's'} waiting`}
           description={
             rows.length > 0
               ? 'Oldest request first. A page leaves this list once its replacement is uploaded.'
@@ -70,6 +74,8 @@ export default function RescanQueuePage() {
               from the review queue or the page viewer.
             </p>
           ) : (
+            <>
+            <Pager page={page} total={q.data?.total} count={rows.length} onPage={setPage} />
             <ul className="divide-y divide-rule">
               {rows.map((p) => (
                 <li key={p.page_version_id} className="flex items-start gap-3 py-3">
@@ -101,6 +107,7 @@ export default function RescanQueuePage() {
                 </li>
               ))}
             </ul>
+            </>
           )}
         </Panel>
       ) : null}

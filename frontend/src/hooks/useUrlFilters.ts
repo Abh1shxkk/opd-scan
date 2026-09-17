@@ -6,6 +6,7 @@
  * guarantees an export matches the view, because both are built from the same query string.
  */
 
+import { pageParams } from '../components/Pager';
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FILTER_KEYS, parseFilters, toSearchParams, type Filters } from '../lib/filters';
@@ -61,7 +62,8 @@ export function useUrlFilters(): {
     [filters, setSearch, carryOver],
   );
 
-  const params = useMemo(() => toSearchParams(filters, { page }), [filters, page]);
+  // The API pages by limit/offset, not by page number — sending `page` alone was ignored.
+  const params = useMemo(() => toSearchParams(filters, pageParams(page)), [filters, page]);
 
   return { filters, setFilters, reset, params, page, setPage };
 }
