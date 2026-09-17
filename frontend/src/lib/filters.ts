@@ -114,6 +114,25 @@ export function toSearchParams(f: Filters, extra?: Record<string, string | numbe
   return sp;
 }
 
+/**
+ * The query string the API receives. Identical to `toSearchParams` except that a bare `from`/`to`
+ * date is turned into the instant the user's local day starts or ends. Sent as a bare date, the
+ * server read it as a UTC day, so anything uploaded between midnight and 05:30 IST was counted on
+ * the previous day — in the lists, the dashboard and the exports alike.
+ */
+export function toApiSearchParams(
+  f: Filters,
+  extra?: Record<string, string | number | undefined>,
+): URLSearchParams {
+  const sp = toSearchParams(f, extra);
+  const DAY = /^\d{4}-\d{2}-\d{2}$/;
+  const from = sp.get('from');
+  if (from && DAY.test(from)) sp.set('from', new Date(`${from}T00:00:00`).toISOString());
+  const to = sp.get('to');
+  if (to && DAY.test(to)) sp.set('to', new Date(`${to}T23:59:59.999`).toISOString());
+  return sp;
+}
+
 /** The URL the address bar should carry — identical to the API query string, minus paging. */
 export function toQueryString(f: Filters): string {
   const s = toSearchParams(f).toString();

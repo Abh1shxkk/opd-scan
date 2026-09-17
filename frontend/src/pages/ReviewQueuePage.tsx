@@ -231,7 +231,7 @@ export default function ReviewQueuePage() {
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[13px] font-medium text-ink">
                     Page {p.ordinal}
-                    {p.printed_page_label ? ` ${p.printed_page_label}` : ''}
+                    {p.printed_page_label ? ` · printed ${p.printed_page_label}` : ''}
                   </span>
                   <span className="truncate text-[11px] text-ink-2" title={p.document_filename}>
                     {p.document_filename}
@@ -314,7 +314,7 @@ function QueueDetail({
 
   return (
     <Panel
-      title={`Page ${page.ordinal}${page.printed_page_label ? ` ${page.printed_page_label}` : ''}`}
+      title={`Page ${page.ordinal}${page.printed_page_label ? ` · printed ${page.printed_page_label}` : ''}`}
       description={page.document_filename}
       actions={
         <Link

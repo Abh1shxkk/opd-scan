@@ -2,7 +2,7 @@
  * Reports and exports.
  *
  * The filter form here is the SAME component and the SAME state shape as the document list, and
- * every download URL is built from `toSearchParams(filters)` — the identical query string the list
+ * every download URL is built from `toApiSearchParams(filters)` — the identical query string the list
  * itself sends. docs/API.md requires exports to produce identical totals to the view, and the only
  * dependable way to guarantee that in a UI is to give the two exactly one source of truth.
  *
@@ -14,7 +14,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, reports } from '../lib/api';
-import { toQueryString, toSearchParams } from '../lib/filters';
+import { toApiSearchParams, toQueryString } from '../lib/filters';
 import { FilterBar, FilterSummary } from '../components/FilterBar';
 import { Panel } from '../components/Sheet';
 import { useToast } from '../components/Toast';
@@ -61,7 +61,7 @@ export default function ReportsPage() {
   async function run(id: ExportId) {
     setBusy(id);
     setStatus(`Preparing the ${EXPORTS.find((e) => e.id === id)?.label} export…`);
-    const sp = toSearchParams(filters);
+    const sp = toApiSearchParams(filters);
     try {
       if (id === 'csv') await reports.csv(sp);
       else if (id === 'xlsx') await reports.xlsx(sp);

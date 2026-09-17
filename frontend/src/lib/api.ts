@@ -185,6 +185,18 @@ function qs(params: Record<string, unknown> | URLSearchParams | undefined): stri
 const IMAGE_CACHE = 'page-images-v1';
 const imageMemory = new Map<string, Blob>();
 const CACHEABLE = /^\/pages\/[^/]+\/(thumb|preview|image)$/;
+// Patient images must not outlive a working day on a shared ward computer, even when nobody
+// signed out: entries older than this are discarded and fetched again.
+const IMAGE_CACHE_MAX_AGE_MS = 8 * 60 * 60 * 1000;
+
+/** Drop the on-disk image cache when the browser starts with nobody signed in. */
+export function purgeImageCacheIfSignedOut(): void {
+  try {
+    if (!localStorage.getItem(TOKEN_KEY)) void caches.delete(IMAGE_CACHE);
+  } catch {
+    /* ignore */
+  }
+}
 
 /** A blob URL for an image already held in memory, so a remount can render without a flash. */
 export function cachedObjectUrl(path: string): string | null {
@@ -198,7 +210,13 @@ export async function fetchObjectUrl(path: string): Promise<string> {
     const inMemory = imageMemory.get(path);
     if (inMemory) return URL.createObjectURL(inMemory);
     try {
-      const hit = await (await caches.open(IMAGE_CACHE)).match(path);
+      const store = await caches.open(IMAGE_CACHE);
+      let hit = await store.match(path);
+      const cachedAt = Number(hit?.headers.get('X-Cached-At') ?? 0);
+      if (hit && Date.now() - cachedAt > IMAGE_CACHE_MAX_AGE_MS) {
+        await store.delete(path);
+        hit = undefined;
+      }
       if (hit) {
         const blob = await hit.blob();
         imageMemory.set(path, blob);
@@ -224,7 +242,9 @@ export async function fetchObjectUrl(path: string): Promise<string> {
     try {
       await (await caches.open(IMAGE_CACHE)).put(
         path,
-        new Response(blob, { headers: { 'Content-Type': blob.type } }),
+        new Response(blob, {
+          headers: { 'Content-Type': blob.type, 'X-Cached-At': String(Date.now()) },
+        }),
       );
     } catch {
       /* ignore — the memory copy still serves this session */

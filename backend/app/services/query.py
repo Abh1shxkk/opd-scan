@@ -260,13 +260,21 @@ def _coerce_dt(value: datetime | date | str | None, *, end_of_day: bool) -> date
         return None
     if isinstance(value, str):
         text = value.strip().replace("Z", "+00:00")
-        try:
-            value = datetime.fromisoformat(text)
-        except ValueError:
+        # A bare YYYY-MM-DD must stay a date: datetime.fromisoformat accepts it too and returns
+        # midnight, which made "to 17 Sep" end at the very start of the 17th and drop that whole day.
+        if len(text) == 10:
             try:
-                value = date.fromisoformat(text[:10])
+                value = date.fromisoformat(text)
             except ValueError:
                 return None
+        else:
+            try:
+                value = datetime.fromisoformat(text)
+            except ValueError:
+                try:
+                    value = date.fromisoformat(text[:10])
+                except ValueError:
+                    return None
     if isinstance(value, datetime):
         return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
     # a plain date

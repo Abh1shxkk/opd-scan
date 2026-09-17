@@ -9,7 +9,7 @@
 import { pageParams } from '../components/Pager';
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FILTER_KEYS, parseFilters, toSearchParams, type Filters } from '../lib/filters';
+import { FILTER_KEYS, parseFilters, toApiSearchParams, toSearchParams, type Filters } from '../lib/filters';
 
 export function useUrlFilters(): {
   filters: Filters;
@@ -63,7 +63,7 @@ export function useUrlFilters(): {
   );
 
   // The API pages by limit/offset, not by page number — sending `page` alone was ignored.
-  const params = useMemo(() => toSearchParams(filters, pageParams(page)), [filters, page]);
+  const params = useMemo(() => toApiSearchParams(filters, pageParams(page)), [filters, page]);
 
   return { filters, setFilters, reset, params, page, setPage };
 }

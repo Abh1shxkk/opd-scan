@@ -53,7 +53,15 @@ export function PageThumb({
       <span className="mt-1 block text-[11px] font-medium text-ink">
         Page {ordinal}
         {/* The printed "(14)" in the form's corner is the sequence-gap signal; show it verbatim. */}
-        {printedLabel ? <span className="ml-1 font-normal text-ink-2">{printedLabel}</span> : null}
+        {printedLabel ? (
+          // Said in words: a bare "(7)" beside "Page 2" read as a count of something.
+          <span
+            className="ml-1 font-normal text-ink-2"
+            title={`The page number printed on the sheet itself is ${printedLabel}`}
+          >
+            · printed {printedLabel.replace(/^\((.*)\)$/, '$1')}
+          </span>
+        ) : null}
       </span>
       {view ? (
         <span className="mt-0.5 block">

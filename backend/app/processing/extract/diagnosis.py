@@ -30,7 +30,7 @@ from typing import Any
 
 from app.processing.providers.base import Line, OcrPage
 
-EXTRACTOR_VERSION = "diagnosis-extractor/1.0.0"
+EXTRACTOR_VERSION = "diagnosis-extractor/1.1.0"
 
 # Labels seen on the sample forms, including the misspelling printed on the ENT sheet.
 ANCHORS: list[tuple[str, str]] = [
@@ -68,6 +68,44 @@ AMBIGUOUS_ABBREVIATIONS = {
     "AUB", "TAH", "BSO", "LSCS", "PID", "COPD", "CVA", "MI", "DM", "HTN", "TB", "AKI", "CKD",
     "CA", "RTA", "ARDS", "UTI", "IHD", "CLD", "SOB", "GTCS", "OA", "RA", "PT", "AV", "IUD",
 }
+
+# "Diagnosis" inside a department or service name is not a label: "Department of Radio-Diagnosis",
+# "Radiodiagnosis Imaging & Interventional Radiology", "Diagnosis Centre". Taking the text after it
+# produced entries such as "IMAGING & INTERVENTIONAL RADIOLOGY" in the diagnosis queue.
+_NOT_A_LABEL = re.compile(
+    r"radio[\s\-]*diagnos"
+    r"|department\s+of.*diagnos"
+    r"|diagnos[ie]s\s*(?:&|and)?\s*(?:imaging|cent(?:re|er)|lab(?:orator(?:y|ies))?|servic|depart|clinic)",
+    re.IGNORECASE,
+)
+
+# A following line that starts with one of these is the next field on the form, not the rest of the
+# diagnosis. Without this, "Provisional Diagnosis" with a blank value swallowed the line below it —
+# "IPD/OPD Reg. No: 140 (OPD) / Date 22.09.2014 / Consult".
+_FORM_FIELD = re.compile(
+    r"^\W*(?:ipd|opd|mr\s*no|m\.?r\.?d|uhid|reg(?:istration)?\.?\s*no|cr\s*no|date|d\.?o\.?[ad]|time|name|age|sex"
+    r"|ward|bed|unit|consult|signature|sign|address|mobile|phone|contact|investigations?|treatment"
+    r"|advice|adv|history|chief\s+complaint|complaints?|c/o|o/e|on\s+examination|examination"
+    r"|medicines?|medication|rx|plan|follow[\s\-]*up|procedure|operation|dept|department)",
+    re.IGNORECASE,
+)
+
+# Investigation names. A value made only of these is a lab-report row sitting under a label (seen:
+# "TLC, DLC, ESR, Bl. Group"), not a diagnosis.
+_LAB_TERMS = {
+    "TLC", "DLC", "ESR", "HB", "HGB", "HB%", "RBS", "FBS", "PPBS", "BL", "BLOOD", "GROUP", "GROUPING",
+    "URINE", "CBC", "LFT", "KFT", "RFT", "SGOT", "SGPT", "PLATELET", "PLATELETS", "PCV", "MCV", "HIV",
+    "HBSAG", "HCV", "VDRL", "BT", "CT", "INR", "TSH", "T3", "T4", "ECG", "USG", "MRI", "XRAY", "X-RAY",
+    "UREA", "CREATININE", "S.", "SR", "SERUM", "ELECTROLYTES", "R/M", "RM", "HBA1C", "CRP", "RA",
+    "WIDAL", "MP", "NS1", "DENGUE", "COUNT", "SUGAR", "TEST", "PROFILE", "LIPID", "BILIRUBIN",
+}
+
+
+def _is_lab_only(text: str) -> bool:
+    tokens = [t for t in re.split(r"[\s,;:+/]+", text.upper()) if t and not t.isdigit()]
+    tokens = [t.rstrip(".") or t for t in tokens]
+    return bool(tokens) and all(t in _LAB_TERMS or t + "." in _LAB_TERMS for t in tokens)
+
 
 _MULTI_SPLIT = re.compile(r"\s*(?:;|\band\b|\+|/{2,}|,\s*(?=[A-Z]))\s*")
 
@@ -239,7 +277,7 @@ def extract(page: OcrPage, max_continuation_lines: int = 3) -> list[DiagnosisCan
             if m:
                 matched = (m, label_qualifier)
                 break
-        if not matched:
+        if not matched or _NOT_A_LABEL.search(text):
             continue
         m, label_qualifier = matched
         anchor_label = text[m.start() : m.end()].strip()
@@ -267,6 +305,8 @@ def extract(page: OcrPage, max_continuation_lines: int = 3) -> list[DiagnosisCan
                 if any(re.search(p, nxt_text, re.IGNORECASE) for p, _ in ANCHORS):
                     break
                 if any(re.search(p, nxt_text, re.IGNORECASE) for p in ICD_LABELS):
+                    break
+                if _FORM_FIELD.search(nxt_text) or _is_lab_only(nxt_text):
                     break
                 value_parts.append("\n" + nxt_text)
                 regions.append(_bbox(nxt.polygon))
@@ -310,6 +350,10 @@ def extract(page: OcrPage, max_continuation_lines: int = 3) -> list[DiagnosisCan
         pieces = [p.strip() for p in _MULTI_SPLIT.split(raw_value) if len(p.strip()) >= 2]
         if not pieces:
             pieces = [raw_value]
+        # Investigation names are not diagnoses. Dropped only when *every* piece is one, so a real
+        # diagnosis written beside a test name ("Anaemia, Hb 7") is never lost.
+        if all(_is_lab_only(p) for p in pieces):
+            continue
 
         for piece in pieces:
             cleaned, applied = _clean(piece)

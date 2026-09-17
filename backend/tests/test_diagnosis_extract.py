@@ -329,3 +329,51 @@ def test_candidate_serialises_with_every_audit_field():
     assert payload["raw_text"] == "AUB  with TAH"
     assert payload["cleaning_applied"] == ["collapsed repeated spaces"]
     assert payload["ambiguous_abbreviations"] == ["AUB", "TAH"]
+
+
+# ------------------------------------------------ false positives seen on real records
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        "Department of Radio-Diagnosis",
+        "RADIODIAGNOSIS IMAGING & INTERVENTIONAL RADIOLOGY",
+        "Diagnosis Centre, Subharti Hospital",
+        "DIAGNOSIS IMAGING & INTERVENTIONAL RADIOLOGY",
+    ],
+)
+def test_a_department_or_service_name_is_not_a_diagnosis_label(header):
+    assert extract(page(line(header, 0), line("Some other text", 1))) == []
+
+
+def test_the_next_form_field_is_not_swallowed_as_the_diagnosis():
+    candidates = extract(
+        page(
+            line("Provisional Diagnosis", 0),
+            line("IPD/OPD Reg. No: 140 (OPD)", 1),
+            line("Date 22.09.2014", 2),
+        )
+    )
+    c = only(candidates)
+    assert c.status == STATUS_NOT_FOUND
+    assert c.raw_text == ""
+
+
+def test_a_diagnosis_followed_by_a_form_field_keeps_only_the_diagnosis():
+    c = only(extract(page(line("Final Diagnosis", 0), line("Fibroid uterus", 1), line("Date 22.09.2014", 2))))
+    assert c.raw_text == "Fibroid uterus"
+
+
+def test_a_row_of_investigation_names_is_not_a_diagnosis():
+    assert extract(page(line("Diagnosis : TLC, DLC, ESR, Bl. Group", 0))) == []
+
+
+def test_a_diagnosis_beside_a_test_name_is_kept():
+    texts = [c.raw_text for c in extract(page(line("Diagnosis : Anaemia, Hb 7", 0)))]
+    assert any("Anaemia" in t for t in texts)
+
+
+def test_a_real_multi_diagnosis_value_is_unaffected():
+    texts = [c.raw_text for c in extract(page(line("Impression : Compression fracture D12; Ankylosing spondylitis", 0)))]
+    assert texts == ["Compression fracture D12", "Ankylosing spondylitis"]

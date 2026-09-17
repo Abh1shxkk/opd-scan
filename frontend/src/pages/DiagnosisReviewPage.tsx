@@ -120,7 +120,7 @@ function ReviewBody({
               className="font-medium text-chart underline"
             >
               Page {d.page.ordinal}
-              {d.page.printed_page_label ? ` ${d.page.printed_page_label}` : ''}
+              {d.page.printed_page_label ? ` · printed ${d.page.printed_page_label}` : ''}
             </Link>{' '}
             of {d.page.document_filename}
             {d.page.patient_ref ? ` · patient ${d.page.patient_ref}` : ''}

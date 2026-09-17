@@ -223,7 +223,7 @@ function PagesTable({ rows }: { rows: PageSummary[] }) {
                           className="font-medium text-chart underline"
                         >
                           Page {p.ordinal}
-                          {p.printed_page_label ? ` ${p.printed_page_label}` : ''}
+                          {p.printed_page_label ? ` · printed ${p.printed_page_label}` : ''}
                         </Link>
                         {/* Version number is shown because only active versions are listed; v3 means
                             two earlier attempts exist in this page's history. */}
