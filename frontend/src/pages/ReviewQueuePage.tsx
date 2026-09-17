@@ -315,7 +315,7 @@ function QueueDetail({
       }
     >
       <div className="flex flex-wrap gap-2">
-        <StatusPill view={pageClassView(page.page_class)} showDetail />
+        <StatusPill view={pageClassView(page.page_class, page.review_state)} showDetail />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">

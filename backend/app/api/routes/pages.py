@@ -335,6 +335,7 @@ def page_detail(page_version_id: str, db: Session = Depends(get_db), user: User 
                 "ordinal": sibling.ordinal,
                 "printed_page_label": sibling.printed_page_label,
                 "page_class": av.quality.overall.value if av.quality else PageClass.unchecked.value,
+                "review_state": _review_state(av),
             }
         )
 

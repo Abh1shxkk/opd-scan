@@ -358,6 +358,7 @@ class DocumentPageRef(BaseModel):
     ordinal: int
     printed_page_label: str | None
     page_class: str
+    review_state: str | None = None
 
 
 class PageDetail(PageSummary):

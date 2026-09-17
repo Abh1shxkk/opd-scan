@@ -8,7 +8,7 @@
 import { useAuthedObjectUrl } from '../hooks/useAuthedObjectUrl';
 import { imagePath } from '../lib/api';
 import { pageClassView } from '../lib/status';
-import type { PageClass } from '../lib/types';
+import type { PageClass, ReviewState } from '../lib/types';
 import { StatusPill } from './StatusPill';
 
 export function PageThumb({
@@ -16,6 +16,7 @@ export function PageThumb({
   ordinal,
   printedLabel,
   pageClass,
+  reviewState,
   selected = false,
   onClick,
   as = 'button',
@@ -24,12 +25,13 @@ export function PageThumb({
   ordinal: number;
   printedLabel?: string | null;
   pageClass?: PageClass;
+  reviewState?: ReviewState | null;
   selected?: boolean;
   onClick?: () => void;
   as?: 'button' | 'div';
 }) {
   const { url, loading, error } = useAuthedObjectUrl(imagePath.thumb(pageVersionId));
-  const view = pageClass ? pageClassView(pageClass) : null;
+  const view = pageClass ? pageClassView(pageClass, reviewState) : null;
 
   const inner = (
     <>

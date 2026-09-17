@@ -41,6 +41,23 @@ function Text({ value }: { value: string }) {
   return <>{value}</>;
 }
 
+function pad(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+/** Whether a record's entry time falls on `day` (YYYY-MM-DD) and within [from, to] (HH:MM), local time. */
+function matchesEntered(createdAt: string | null | undefined, day: string, from: string, to: string) {
+  if (!day && !from && !to) return true;
+  if (!createdAt) return false;
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return false;
+  if (day && `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` !== day) return false;
+  const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (from && hm < from) return false;
+  if (to && hm > to) return false;
+  return true;
+}
+
 export default function PatientsPage() {
   const { can } = useAuth();
   const toast = useToast();
@@ -48,6 +65,11 @@ export default function PatientsPage() {
 
   const [mr, setMr] = useState('');
   const [ipd, setIpd] = useState('');
+  // When the record was entered, in the clerk's local time. Filtered here rather than on the API:
+  // the list is already fetched whole, and "the 17th" means the local day, not the UTC one.
+  const [day, setDay] = useState('');
+  const [fromTime, setFromTime] = useState('');
+  const [toTime, setToTime] = useState('');
   const [editing, setEditing] = useState<Case | null>(null);
   const [deleting, setDeleting] = useState<Case | null>(null);
 
@@ -65,7 +87,15 @@ export default function PatientsPage() {
       (query.state.data ?? []).some(isWorking) ? 4000 : false,
   });
 
-  const rows = q.data ?? [];
+  // Total in the database, independent of every filter on this screen. Shares its cache entry
+  // with the unfiltered list, so it costs nothing extra when no search is typed.
+  const total = useQuery({ queryKey: ['cases', '', ''], queryFn: () => api.listCases({}) });
+
+  const dateFiltered = Boolean(day || fromTime || toTime);
+  const rows = useMemo(
+    () => (q.data ?? []).filter((c) => matchesEntered(c.created_at, day, fromTime, toTime)),
+    [q.data, day, fromTime, toTime],
+  );
   const withScans = useMemo(() => rows.filter((c) => c.page_count > 0).length, [rows]);
   const working = useMemo(() => rows.filter(isWorking).length, [rows]);
 
@@ -75,7 +105,14 @@ export default function PatientsPage() {
         title="Patient records"
         description="Every record entered on the intake screen. Open one to read its scan, its quality verdict and anything the machine read from it."
         meta={[
-          { label: 'Records in view', value: <span className="tabular-nums">{rows.length}</span> },
+          {
+            label: 'Total records',
+            value: <span className="tabular-nums">{total.data ? total.data.length : '…'}</span>,
+          },
+          {
+            label: day ? `Entered on ${day}` : 'Records in view',
+            value: <span className="tabular-nums">{rows.length}</span>,
+          },
           { label: 'With scans attached', value: <span className="tabular-nums">{withScans}</span> },
           {
             label: 'Still processing',
@@ -101,8 +138,11 @@ export default function PatientsPage() {
         ]}
       />
 
-      <Panel title="Find a record" description="Both fields match on any part of the number.">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Panel
+        title="Find a record"
+        description="MR and IPD match on any part of the number. Date and time filter on when the record was entered."
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <TextInput
             label="MR number"
             value={mr}
@@ -115,14 +155,37 @@ export default function PatientsPage() {
             placeholder="e.g. IP.140922103"
             onChange={(e) => setIpd(e.target.value)}
           />
+          <TextInput
+            label="Entered on"
+            type="date"
+            value={day}
+            onChange={(e) => setDay(e.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <TextInput
+              label="From time"
+              type="time"
+              value={fromTime}
+              onChange={(e) => setFromTime(e.target.value)}
+            />
+            <TextInput
+              label="To time"
+              type="time"
+              value={toTime}
+              onChange={(e) => setToTime(e.target.value)}
+            />
+          </div>
           <div className="flex items-end">
             <Button
               variant="secondary"
               onClick={() => {
                 setMr('');
                 setIpd('');
+                setDay('');
+                setFromTime('');
+                setToTime('');
               }}
-              disabled={!mr && !ipd}
+              disabled={!mr && !ipd && !dateFiltered}
             >
               Clear
             </Button>
@@ -209,6 +272,10 @@ export default function PatientsPage() {
                         <span className="mt-0.5 block">
                           <span className="text-ink-2">Recorded </span>
                           <DateCell value={c.record_date} />
+                        </span>
+                        <span className="mt-0.5 block">
+                          <span className="text-ink-2">Entered </span>
+                          <span className="tabular-nums">{c.created_at ? formatDateTime(c.created_at) : '—'}</span>
                         </span>
                       </td>
 

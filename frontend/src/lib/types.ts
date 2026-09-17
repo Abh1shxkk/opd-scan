@@ -573,6 +573,7 @@ export interface PageDetail extends PageSummary {
     ordinal: number;
     printed_page_label: string | null;
     page_class: PageClass;
+    review_state?: ReviewState;
   }>;
 }
 

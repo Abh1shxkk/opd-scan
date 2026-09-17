@@ -330,6 +330,7 @@ function ViewerBody({
                     ordinal={p.ordinal}
                     printedLabel={p.printed_page_label}
                     pageClass={p.page_class}
+                    reviewState={p.review_state}
                     selected={p.page_version_id === page.page_version_id}
                     as="div"
                   />
@@ -689,7 +690,7 @@ function QualityPanel({
       description="Scan defects only. Handwriting on a page is not a defect and is never listed here."
     >
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <StatusPill view={pageClassView(page.page_class)} showDetail />
+        <StatusPill view={pageClassView(page.page_class, page.review_state)} showDetail />
       </div>
 
       {/* The pill itself now reads "… · accepted by reviewer", so this only has to answer the
