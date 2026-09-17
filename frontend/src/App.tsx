@@ -5,6 +5,7 @@
  * refuse, but the server remains the authority — `RequireRole` hides, it does not protect.
  */
 
+import { BackToTop } from './components/BackToTop';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useAuth } from './lib/auth';
@@ -71,6 +72,7 @@ function Shell({ children }: { children: ReactNode }) {
       <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto p-3 lg:p-5">
         <div className="mx-auto max-w-[110rem]">{children}</div>
       </main>
+      <BackToTop />
     </div>
   );
 }

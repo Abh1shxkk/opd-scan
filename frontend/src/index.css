@@ -361,3 +361,32 @@
     }
   }
 }
+
+/* ---------------------------------------------------------------- sign-in illustration */
+@keyframes login-scan {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(150px); opacity: 0; }
+}
+@keyframes login-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes login-pop {
+  0%, 55% { transform: scale(0); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  80%, 100% { transform: scale(1); opacity: 1; }
+}
+@keyframes login-rise {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.login-scanline { animation: login-scan 2.8s ease-in-out infinite; }
+.login-float { animation: login-float 5s ease-in-out infinite; }
+.login-float-slow { animation: login-float 6.5s ease-in-out infinite 0.8s; }
+.login-pop { transform-box: fill-box; transform-origin: center; animation: login-pop 2.8s ease-out infinite; }
+.login-rise { animation: login-rise 0.5s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .login-scanline, .login-float, .login-float-slow, .login-pop, .login-rise { animation: none; opacity: 1; }
+}

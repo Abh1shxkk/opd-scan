@@ -1,30 +1,34 @@
 /**
- * Diagnosis review queue.
+ * Diagnosis review, file by file.
  *
- * Every row makes two things unmissable before the reviewer opens it: whether a human has looked
- * at the extraction yet, and what clinical qualifier the record carried. A "ruled out" entry that
- * reads like a plain diagnosis in a list is a patient-safety problem, not a formatting one.
+ * Each card leads with what matters — the diagnosis as written — and says only what changes how it
+ * should be read: a qualifier that is not a plain final diagnosis ("ruled out", "suspected"), a
+ * transcription the machine was not sure of, and abbreviations left unexpanded. A "ruled out"
+ * entry that reads like a plain diagnosis in a list is a patient-safety problem, so the qualifier is
+ * always shown when there is one.
  */
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { api } from '../lib/api';
-import { diagnosisView, formatConfidence, formatDateTime, qualifierView } from '../lib/status';
+import { diagnosisView, formatConfidence, qualifierView } from '../lib/status';
 import type { DiagnosisExtraction, PageRef } from '../lib/types';
 import { StatusPill } from '../components/StatusPill';
 import { EmptyState, ErrorState, Spinner } from '../components/ui';
-import { Pager, PAGE_SIZE } from '../components/Pager';
-import { UnreviewedBadge } from '../components/UnreviewedBadge';
+import { Pager, PAGE_SIZE, useClampPage } from '../components/Pager';
 import {
+  DetailHeader,
   EMPTY_WORK_FILTER,
   FileSplit,
+  FilterChip,
   groupByFile,
+  QueueHeader,
   toUploadWindow,
   WorkFilters,
   type WorkFilterValue,
 } from '../components/WorkFilters';
-import { TriangleAlert } from 'lucide-react';
 
 type Row = DiagnosisExtraction & { page?: PageRef & { document_id?: string; patient_ref?: string | null } };
 
@@ -32,8 +36,7 @@ export default function DiagnosisQueuePage() {
   const [filter, setFilter] = useState<WorkFilterValue>(EMPTY_WORK_FILTER);
   const [onlyUnreviewed, setOnlyUnreviewed] = useState(true);
   // Most pages carry no diagnosis label at all. Those results are kept (so "nothing written" is
-  // distinguishable from "never checked") but they are not work, and listing them buried the real
-  // diagnoses under dozens of "No diagnosis found" cards that looked like the feature was broken.
+  // distinguishable from "never checked") but they are not work for a reviewer.
   const [showNotFound, setShowNotFound] = useState(false);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export default function DiagnosisQueuePage() {
     queryFn: () => api.listDiagnoses(queryParams),
   });
 
-  const rows = (q.data?.items ?? []) as Row[];
+  const rows = useMemo(() => (q.data?.items ?? []) as Row[], [q.data]);
   const groups = useMemo(
     () =>
       groupByFile(rows, (d) => ({
@@ -64,141 +67,136 @@ export default function DiagnosisQueuePage() {
       })),
     [rows],
   );
+  useClampPage(page, groups.length, setPage);
   const pageGroups = groups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const resetPage = () => setPage(1);
 
   return (
     <div className="space-y-4">
-      <header className="rule-double pb-2">
-        <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-ink">Diagnosis review</h1>
-        <p className="mt-1 text-[13px] text-ink-2">
-          Diagnoses transcribed from a diagnosis label written on the page, file by file. Nothing here
-          is inferred from symptoms, medicines or procedures.
-        </p>
-      </header>
+      <QueueHeader
+        title="Diagnosis review"
+        subtitle={
+          q.data ? (
+            <>
+              <strong className="font-semibold text-ink">{rows.length}</strong> diagnos
+              {rows.length === 1 ? 'is' : 'es'}
+              {onlyUnreviewed ? ' to check' : ''} in{' '}
+              <strong className="font-semibold text-ink">{groups.length}</strong> file
+              {groups.length === 1 ? '' : 's'}. Read from the diagnosis written on the page — never guessed.
+            </>
+          ) : (
+            'Diagnoses read from the diagnosis written on each page.'
+          )
+        }
+      />
 
       <WorkFilters
         value={filter}
         onChange={(next) => {
           setFilter(next);
-          resetPage();
+          setPage(1);
         }}
-        searchLabel="File name, MR or IPD"
       >
-        <label className="flex items-center gap-2 text-[13px] text-ink">
-          <input
-            type="checkbox"
-            checked={onlyUnreviewed}
-            onChange={(e) => {
-              setOnlyUnreviewed(e.target.checked);
-              resetPage();
-            }}
-            className="h-4 w-4 rounded border-rule-2 text-chart"
-          />
-          Only not yet reviewed
-        </label>
-        <label className="flex items-center gap-2 text-[13px] text-ink">
-          <input
-            type="checkbox"
-            checked={showNotFound}
-            onChange={(e) => {
-              setShowNotFound(e.target.checked);
-              resetPage();
-            }}
-            className="h-4 w-4 rounded border-rule-2 text-chart"
-          />
-          Also show pages where no diagnosis was written
-        </label>
+        <FilterChip
+          active={onlyUnreviewed}
+          onClick={() => {
+            setOnlyUnreviewed((v) => !v);
+            setPage(1);
+          }}
+        >
+          Not reviewed yet
+        </FilterChip>
+        <FilterChip
+          active={showNotFound}
+          onClick={() => {
+            setShowNotFound((v) => !v);
+            setPage(1);
+          }}
+        >
+          Include pages with no diagnosis
+        </FilterChip>
       </WorkFilters>
 
       {q.isLoading ? <Spinner /> : null}
       {q.isError ? <ErrorState error={q.error} retry={() => q.refetch()} /> : null}
 
       {q.data && rows.length === 0 ? (
-        <EmptyState title="No diagnoses match these filters.">
-          {onlyUnreviewed ? 'Every diagnosis found in this view has been reviewed.' : null}
-        </EmptyState>
+        <EmptyState title={onlyUnreviewed ? 'All caught up — every diagnosis has been reviewed.' : 'No diagnoses match.'} />
       ) : null}
 
       {rows.length > 0 ? (
         <>
-          <p className="text-[13px] text-ink-2">
-            <span className="font-semibold text-ink">{rows.length}</span> diagnos
-            {rows.length === 1 ? 'is' : 'es'} across{' '}
-            <span className="font-semibold text-ink">{groups.length}</span> file
-            {groups.length === 1 ? '' : 's'}.
-          </p>
-          <Pager page={page} total={groups.length} count={pageGroups.length} onPage={setPage} />
           <FileSplit
             groups={pageGroups}
             selectedId={selected}
             onSelect={setSelected}
             countLabel={(n) => `${n} diagnos${n === 1 ? 'is' : 'es'}`}
             detail={(g) => (
-              <ul className="space-y-2">
-                {g.items.map((d) => {
-                  const conf = formatConfidence(d.confidence);
-                  return (
-              <li
-                    key={d.id}
-                    className="sheet p-3"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Qualifier first: it changes what the text means. */}
-                      <StatusPill view={qualifierView(d.qualifier)} />
-                      <StatusPill view={diagnosisView(d.status)} size="sm" />
-                      {!d.is_reviewed ? <UnreviewedBadge /> : null}
-                      {conf ? (
-                        <span className="text-[11px] text-ink-2">confidence {conf}</span>
-                      ) : null}
-                    </div>
-
-                    <p className="mt-2 text-[11px] text-ink-2">
-                  {d.page ? `Page ${d.page.ordinal} · ` : ''}
-                      Label on the page: “{d.anchor_label || 'unlabelled'}” · extracted{' '}
-                      {formatDateTime(d.extracted_at)}
-                    </p>
-
-                    {/* The raw transcription is what the model actually read; it is shown, not the tidied
-                        version, so a list scan is never one step removed from the source. Once a
-                        reviewer has corrected it, though, the correction is what the record says — and
-                        a queue that kept showing the superseded reading would send the next person to
-                        re-do work that is already done. Both are shown, correction first. */}
-                    {d.corrected_text ? (
-                      <>
-                        <p className="mt-1 font-mono text-[13px] text-ink">{d.corrected_text}</p>
-                        <p className="mt-0.5 text-[11px] text-ink-2">
-                          Corrected{d.corrected_by_name ? ` by ${d.corrected_by_name}` : ''} · as read:{' '}
-                          <span className="font-mono line-through">{d.raw_text || '—'}</span>
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-1 font-mono text-[13px] text-ink">
-                        {d.raw_text || <span className="italic text-ink-2">No text was transcribed.</span>}
-                      </p>
-                    )}
-
-                    {d.ambiguous_abbreviations && d.ambiguous_abbreviations.length > 0 ? (
-                      <p className="mt-1 text-[11px] text-ink">
-                        <TriangleAlert size={13} strokeWidth={2.5} aria-hidden="true" className="mr-1 inline-block shrink-0 align-[-2px] text-note" />
-                        Left unexpanded: {d.ambiguous_abbreviations.join(', ')}
-                      </p>
-                    ) : null}
-
-                    <Link
-                      to={`/diagnoses/${d.id}`}
-                      className="mt-2 inline-block text-[13px] font-medium text-chart underline"
-                    >
-                      Review against the page image
-                    </Link>
-                  </li>
-                  );
-                })}
-              </ul>
+              <div className="border border-rule bg-paper">
+                <DetailHeader
+                  title={g.filename}
+                  subtitle={`${g.patientRef ? `MR ${g.patientRef} · ` : ''}${g.items.length} diagnos${
+                    g.items.length === 1 ? 'is' : 'es'
+                  }`}
+                />
+                <ul className="divide-y divide-rule">
+                  {[...g.items]
+                    .sort((a, b) => (a.page?.ordinal ?? 0) - (b.page?.ordinal ?? 0))
+                    .map((d) => (
+                      <DiagnosisRow key={d.id} d={d} />
+                    ))}
+                </ul>
+              </div>
             )}
           />
+          <Pager page={page} total={groups.length} count={pageGroups.length} onPage={setPage} />
         </>
       ) : null}
     </div>
+  );
+}
+
+function DiagnosisRow({ d }: { d: Row }) {
+  const conf = formatConfidence(d.confidence);
+  const text = d.corrected_text || d.cleaned_text || d.raw_text;
+  // Only the signals that change how the text should be read are shown as tags.
+  const showQualifier = d.qualifier && d.qualifier !== 'unspecified' && d.qualifier !== 'final';
+  const showStatus = d.status !== 'extracted_pending_review';
+
+  return (
+    <li>
+      <Link
+        to={`/diagnoses/${d.id}`}
+        className="group flex items-center gap-4 px-4 py-3 transition-colors duration-150 hover:bg-paper-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
+      >
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-paper-3 text-[12px] font-semibold tabular-nums text-ink">
+          {d.page ? `P${d.page.ordinal}` : '—'}
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-medium text-ink">
+            {text || <span className="italic text-ink-2">Nothing could be read</span>}
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-ink-2">
+            <span>{d.anchor_label ? `Under “${d.anchor_label}”` : 'No label'}</span>
+            {conf ? <span>· {conf} sure</span> : null}
+            {d.corrected_text ? <span className="font-medium text-chart">· Corrected</span> : null}
+            {d.is_reviewed && !d.corrected_text ? <span className="font-medium text-chart">· Reviewed</span> : null}
+            {showQualifier ? <StatusPill view={qualifierView(d.qualifier)} size="sm" /> : null}
+            {showStatus ? <StatusPill view={diagnosisView(d.status)} size="sm" /> : null}
+            {d.ambiguous_abbreviations && d.ambiguous_abbreviations.length > 0 ? (
+              <span className="inline-flex items-center gap-1 text-note">
+                <TriangleAlert size={12} aria-hidden="true" />
+                {d.ambiguous_abbreviations.join(', ')} not expanded
+              </span>
+            ) : null}
+          </span>
+        </span>
+
+        <span className="hidden shrink-0 items-center gap-1 text-[13px] font-semibold text-chart sm:inline-flex">
+          Review
+          <ChevronRight size={16} aria-hidden="true" className="transition-transform group-hover:translate-x-0.5" />
+        </span>
+      </Link>
+    </li>
   );
 }

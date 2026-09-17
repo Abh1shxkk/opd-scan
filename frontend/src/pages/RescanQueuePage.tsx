@@ -1,31 +1,28 @@
 /**
- * Pages a reviewer has asked to be rescanned.
+ * Pages a reviewer has asked to be rescanned, file by file.
  *
- * This screen is the missing half of the rescan workflow. Requesting a rescan used to record the
- * request and then go nowhere visible — the only output was a printable checklist, and the endpoint
- * that attaches the new scan was wired to nothing. So a request could be made but never answered
- * inside the product.
- *
- * Each row therefore carries the action that closes it: upload the rescan, and the page moves on.
+ * Each row carries the action that closes it: upload the new scan and the page leaves the list.
+ * The current version is kept in history.
  */
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { Upload } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { formatDateTime, pageClassView } from '../lib/status';
+import { formatDateTime } from '../lib/status';
 import type { PageSummary } from '../lib/types';
 import { PageThumb } from '../components/PageThumb';
-import { Pager, PAGE_SIZE } from '../components/Pager';
+import { Pager, PAGE_SIZE, useClampPage } from '../components/Pager';
 import { ReplacePageDialog } from '../components/ReplacePageDialog';
-import { Panel } from '../components/Sheet';
-import { StatusPill } from '../components/StatusPill';
-import { Button, ErrorState, Spinner } from '../components/ui';
+import { ErrorState, EmptyState, Spinner } from '../components/ui';
 import {
+  DetailHeader,
   EMPTY_WORK_FILTER,
   FileSplit,
   groupByFile,
+  QueueHeader,
   toUploadWindow,
   WorkFilters,
   type WorkFilterValue,
@@ -55,7 +52,7 @@ export default function RescanQueuePage() {
     queryFn: () => api.listPages(params),
   });
 
-  const rows = q.data?.items ?? [];
+  const rows = useMemo(() => q.data?.items ?? [], [q.data]);
   const groups = useMemo(
     () =>
       groupByFile(rows, (p) => ({
@@ -66,19 +63,26 @@ export default function RescanQueuePage() {
       })),
     [rows],
   );
+  useClampPage(page, groups.length, setPage);
   const pageGroups = groups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-4">
-      <header className="rule-double pb-2">
-        <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-ink">
-          Awaiting rescan
-        </h1>
-        <p className="mt-1 text-[13px] text-ink-2">
-          Pages a reviewer has asked to be scanned again, file by file. Pick a file to see which of
-          its pages are waiting, then upload the new scan — the current version is kept in history.
-        </p>
-      </header>
+      <QueueHeader
+        title="Awaiting rescan"
+        subtitle={
+          q.data ? (
+            <>
+              <strong className="font-semibold text-ink">{rows.length}</strong> page
+              {rows.length === 1 ? '' : 's'} to scan again in{' '}
+              <strong className="font-semibold text-ink">{groups.length}</strong> file
+              {groups.length === 1 ? '' : 's'}.
+            </>
+          ) : (
+            'Pages a reviewer has asked to be scanned again.'
+          )
+        }
+      />
 
       <WorkFilters
         value={filter}
@@ -86,74 +90,71 @@ export default function RescanQueuePage() {
           setFilter(next);
           setPage(1);
         }}
-        searchLabel="File name, MR or IPD"
       />
 
       {q.isLoading ? <Spinner label="Loading…" /> : null}
       {q.isError ? <ErrorState error={q.error} retry={() => q.refetch()} /> : null}
 
-      {!q.isLoading && !q.isError ? (
-        rows.length === 0 ? (
-          <Panel title="Nothing waiting">
-            <p className="text-[13px] text-ink-2">
-              No page matching these filters is waiting to be rescanned. Pages appear here when a
-              reviewer marks one as needing a rescan.
-            </p>
-          </Panel>
-        ) : (
-          <>
-            <p className="text-[13px] text-ink-2">
-              <span className="font-semibold text-ink">{rows.length}</span> page
-              {rows.length === 1 ? '' : 's'} waiting across{' '}
-              <span className="font-semibold text-ink">{groups.length}</span> file
-              {groups.length === 1 ? '' : 's'}.
-            </p>
-            <Pager page={page} total={groups.length} count={pageGroups.length} onPage={setPage} />
-            <FileSplit
-              groups={pageGroups}
-              selectedId={selected}
-              onSelect={setSelected}
-              countLabel={(n) => `${n} page${n === 1 ? '' : 's'} waiting`}
-              detail={(g) => (
-                <Panel
+      {q.data && rows.length === 0 ? (
+        <EmptyState title="Nothing to rescan." >
+          Pages appear here when a reviewer marks one as needing a rescan.
+        </EmptyState>
+      ) : null}
+
+      {rows.length > 0 ? (
+        <>
+          <FileSplit
+            groups={pageGroups}
+            selectedId={selected}
+            onSelect={setSelected}
+            countLabel={(n) => `${n} page${n === 1 ? '' : 's'} to rescan`}
+            detail={(g) => (
+              <div className="border border-rule bg-paper">
+                <DetailHeader
                   title={g.filename}
-                  description={`${g.items.length} page${g.items.length === 1 ? '' : 's'} waiting for a rescan${
-                    g.patientRef ? ` · MR ${g.patientRef}` : ''
-                  }`}
-                >
-                  <ul className="divide-y divide-rule">
-                    {g.items.map((p) => (
-                      <li key={p.page_version_id} className="flex flex-wrap items-start gap-3 py-3">
+                  subtitle={`${g.patientRef ? `MR ${g.patientRef} · ` : ''}${g.items.length} page${
+                    g.items.length === 1 ? '' : 's'
+                  } to scan again`}
+                />
+                <ul className="divide-y divide-rule">
+                  {g.items.map((p) => (
+                    <li key={p.page_version_id} className="flex flex-wrap items-center gap-4 px-4 py-3">
+                      <Link
+                        to={`/pages/${p.page_version_id}`}
+                        className="block w-28 shrink-0"
+                        aria-label={`Open page ${p.ordinal}`}
+                      >
                         <PageThumb pageVersionId={p.page_version_id} ordinal={p.ordinal} as="div" />
-                        <div className="min-w-0 flex-1">
-                          <Link
-                            to={`/pages/${p.page_version_id}`}
-                            className="text-[14px] font-medium text-chart underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                          >
-                            Page {p.ordinal}
-                          </Link>
-                          <div className="mt-1 flex flex-wrap items-center gap-2">
-                            {/* The engine's own verdict; the reviewer asked for a rescan regardless. */}
-                            <StatusPill view={pageClassView(p.page_class)} size="sm" />
-                            <span className="text-[11px] text-ink-2">scan verdict</span>
-                          </div>
-                          <p className="mt-1 text-[11px] text-ink-2">
-                            Uploaded {formatDateTime(p.uploaded_at)}
-                          </p>
-                        </div>
-                        {can('uploader') ? (
-                          <Button variant="primary" onClick={() => setReplacing(p)}>
-                            Upload new scan
-                          </Button>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </Panel>
-              )}
-            />
-          </>
-        )
+                      </Link>
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          to={`/pages/${p.page_version_id}`}
+                          className="text-[15px] font-semibold text-ink hover:text-chart hover:underline"
+                        >
+                          Page {p.ordinal}
+                        </Link>
+                        <p className="mt-0.5 text-[13px] text-ink-2">
+                          Uploaded {formatDateTime(p.uploaded_at)}
+                        </p>
+                      </div>
+                      {can('uploader') ? (
+                        <button
+                          type="button"
+                          onClick={() => setReplacing(p)}
+                          className="inline-flex h-10 items-center gap-2 border border-chart bg-chart px-4 text-[14px] font-semibold text-paper transition-colors duration-150 hover:bg-chart/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                        >
+                          <Upload size={16} aria-hidden="true" />
+                          Upload new scan
+                        </button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          />
+          <Pager page={page} total={groups.length} count={pageGroups.length} onPage={setPage} />
+        </>
       ) : null}
 
       {replacing ? (

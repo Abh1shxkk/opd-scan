@@ -1,40 +1,34 @@
 /**
  * The review queue, a file at a time.
  *
- * It used to interleave pages from every document in one list — page 7 of one patient's discharge
- * summary above page 2 of another's case sheet — which asks a reviewer to change patient, file and
- * context on every single row. Paper was never handled that way. This lists the files that still
- * have something outstanding; opening one shows all of its pages together.
- *
- * "Outstanding" uses the same definition as the dashboard's awaiting-review figure and the
- * `review_state=pending` page filter, so the three can never disagree about what is left.
+ * Pick a file on the left; the right shows which of its pages still need a decision, as thumbnails
+ * that open straight into the viewer. "Outstanding" uses the same definition as the dashboard's
+ * awaiting-review figure and the `review_state=pending` page filter, so they can never disagree.
  */
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardCheck, FileText } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 import { api } from '../lib/api';
+import { formatDateTime } from '../lib/status';
+import type { DocumentSummary } from '../lib/types';
 import { Pager, pageParams, useClampPage } from '../components/Pager';
 import { PageThumb } from '../components/PageThumb';
 import {
+  DetailHeader,
   EMPTY_WORK_FILTER,
   FileSplit,
+  FilterChip,
+  QueueHeader,
   toUploadWindow,
   WorkFilters,
   type WorkFilterValue,
 } from '../components/WorkFilters';
-
-import { formatDateTime, pageClassView, PAGE_CLASS_ORDER } from '../lib/status';
-import type { DocumentSummary, PageClass } from '../lib/types';
-import { BandPlot } from '../components/BandPlot';
-import { ChartHead, MarginNote, Panel } from '../components/Sheet';
-import { StatusPill } from '../components/StatusPill';
-import { Button, EmptyState, ErrorState, Spinner } from '../components/ui';
+import { EmptyState, ErrorState, Spinner } from '../components/ui';
 
 export default function ReviewDocumentsPage() {
   const [filter, setFilter] = useState<WorkFilterValue>(EMPTY_WORK_FILTER);
-  const q = filter.search;
   const [onlyOpen, setOnlyOpen] = useState(true);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
@@ -43,7 +37,7 @@ export default function ReviewDocumentsPage() {
     queryKey: ['review-documents', filter, onlyOpen, page],
     queryFn: () => {
       const params = new URLSearchParams(pageParams(page));
-      if (q.trim()) params.set('q', q.trim());
+      if (filter.search.trim()) params.set('q', filter.search.trim());
       const w = toUploadWindow(filter);
       if (w.from) params.set('from', w.from);
       if (w.to) params.set('to', w.to);
@@ -57,25 +51,21 @@ export default function ReviewDocumentsPage() {
   const outstanding = rows.reduce((n, d) => n + (d.awaiting_review ?? 0), 0);
 
   return (
-    <div className="space-y-3">
-      <ChartHead
+    <div className="space-y-4">
+      <QueueHeader
         title="Review queue"
-        description="Files with pages a reviewer has not yet accepted or sent for rescan. Open a file to work through its pages together."
-        meta={[
-          { label: 'Files listed', value: <span className="tabular-nums">{rows.length}</span> },
-          {
-            label: 'Pages outstanding',
-            value: <span className="tabular-nums">{outstanding.toLocaleString()}</span>,
-          },
-          {
-            label: 'Showing',
-            value: onlyOpen ? 'Files with work outstanding' : 'All files',
-          },
-          {
-            label: 'Counted as outstanding',
-            value: 'Needs review or rescan, not yet closed',
-          },
-        ]}
+        subtitle={
+          docs.data ? (
+            <>
+              <strong className="font-semibold text-ink">{outstanding}</strong> page
+              {outstanding === 1 ? '' : 's'} waiting for a decision in{' '}
+              <strong className="font-semibold text-ink">{docs.data.total}</strong> file
+              {docs.data.total === 1 ? '' : 's'}.
+            </>
+          ) : (
+            'Pages the quality check flagged, waiting for a reviewer.'
+          )
+        }
       />
 
       <WorkFilters
@@ -85,136 +75,88 @@ export default function ReviewDocumentsPage() {
           setPage(1);
         }}
       >
-        <Button
-          variant={onlyOpen ? 'primary' : 'secondary'}
+        <FilterChip
+          active={onlyOpen}
           onClick={() => {
             setOnlyOpen((v) => !v);
             setPage(1);
           }}
-          aria-pressed={onlyOpen}
         >
-          {onlyOpen ? 'Outstanding only' : 'All files'}
-        </Button>
-        <span className="text-[11px] text-ink-2">
-          A page that could not be measured is not counted — it is unmeasured, not un-reviewed.
-        </span>
+          Only files with open pages
+        </FilterChip>
       </WorkFilters>
-
-      <Pager page={page} total={docs.data?.total} count={rows.length} onPage={setPage} />
 
       {docs.isLoading ? <Spinner label="Loading the queue…" /> : null}
       {docs.isError ? <ErrorState error={docs.error} retry={() => docs.refetch()} /> : null}
 
-      {docs.data ? (
-        <Panel title="Files" flush>
-          {rows.length === 0 ? (
-            <div className="p-3">
-              <EmptyState
-                title={onlyOpen ? 'Nothing is waiting for a decision.' : 'No files match this view.'}
-              >
-                {onlyOpen ? 'Every page in every file has been accepted or sent for rescan.' : null}
-              </EmptyState>
-            </div>
-          ) : (
-            <div className="p-3">
-              <FileSplit
-                groups={rows.map((d) => ({
-                  documentId: d.id,
-                  filename: d.original_filename,
-                  patientRef: d.patient_ref,
-                  uploadedAt: d.uploaded_at,
-                  items: [d],
-                  count: d.awaiting_review ?? 0,
-                }))}
-                selectedId={selected}
-                onSelect={setSelected}
-                countLabel={(n) => `${n} page${n === 1 ? '' : 's'} open`}
-                detail={(g) => (
-                  <div className="sheet">
-                    <DocumentRow doc={g.items[0]} />
-                    <OpenPages documentId={g.documentId} />
-                  </div>
-                )}
-              />
-            </div>
-          )}
-        </Panel>
+      {docs.data && rows.length === 0 ? (
+        <EmptyState title={onlyOpen ? 'All caught up — nothing is waiting for review.' : 'No files match.'} />
       ) : null}
 
-      <MarginNote>
-        Working a file at a time keeps one patient, one document and one set of scanner conditions
-        in front of you at once. A page is still opened and decided individually — this only
-        changes the order they are put in.
-      </MarginNote>
+      {rows.length > 0 ? (
+        <>
+          <FileSplit
+            groups={rows.map((d) => ({
+              documentId: d.id,
+              filename: d.original_filename,
+              patientRef: d.patient_ref,
+              uploadedAt: d.uploaded_at,
+              items: [d],
+              count: d.awaiting_review ?? 0,
+            }))}
+            selectedId={selected}
+            onSelect={setSelected}
+            countLabel={(n) => `${n} page${n === 1 ? '' : 's'} open`}
+            detail={(g) => <FileDetail doc={g.items[0]} />}
+          />
+          <Pager page={page} total={docs.data?.total} count={rows.length} onPage={setPage} />
+        </>
+      ) : null}
     </div>
   );
 }
 
-function DocumentRow({ doc }: { doc: DocumentSummary }) {
+function FileDetail({ doc }: { doc: DocumentSummary }) {
   const active = doc.pages_active ?? 0;
   const open = doc.awaiting_review ?? 0;
-  const counts = doc.page_class_counts ?? {};
-  const present = PAGE_CLASS_ORDER.filter((c) => (counts[c] ?? 0) > 0);
+  const done = Math.max(0, active - open);
+  const pct = active > 0 ? Math.round((done / active) * 100) : 100;
 
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 px-2.5 py-2.5">
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-[13px]">
-          <FileText size={13} strokeWidth={2.25} aria-hidden="true" className="shrink-0 text-ink-2" />
-          <span className="truncate font-medium text-ink">{doc.original_filename}</span>
-        </p>
+    <div className="border border-rule bg-paper">
+      <DetailHeader
+        title={doc.original_filename}
+        subtitle={
+          <>
+            {doc.patient_ref ? `MR ${doc.patient_ref} · ` : ''}
+            {doc.encounter_ref ? `IPD ${doc.encounter_ref} · ` : ''}
+            {active} pages · uploaded {formatDateTime(doc.uploaded_at)}
+          </>
+        }
+        action={
+          <Link
+            to={`/review/${doc.id}`}
+            className="inline-flex h-10 items-center gap-2 border border-chart bg-chart px-4 text-[14px] font-semibold text-paper transition-colors duration-150 hover:bg-chart/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <ClipboardCheck size={16} aria-hidden="true" />
+            Review file
+          </Link>
+        }
+      />
 
-        <p className="mt-1 text-[11px] text-ink-2">
-          {doc.patient_ref ? (
-            <>
-              Patient <span className="tabular-nums">{doc.patient_ref}</span>
-              {doc.encounter_ref ? (
-                <>
-                  {' · '}IPD <span className="tabular-nums">{doc.encounter_ref}</span>
-                </>
-              ) : null}
-              {' · '}
-            </>
-          ) : null}
-          {active} page{active === 1 ? '' : 's'} · uploaded {formatDateTime(doc.uploaded_at)}
-        </p>
-
-        {present.length > 0 ? (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            {present.map((c) => (
-              <span key={c} className="flex items-center gap-1">
-                <StatusPill view={pageClassView(c as PageClass)} size="sm" />
-                <span className="tabular-nums text-[11px] text-ink-2">{counts[c]}</span>
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="flex shrink-0 items-center gap-3">
-        <div className="w-28 text-right">
-          <p className="text-[13px] tabular-nums text-ink">
-            {open} of {active} open
-          </p>
-          {/* Plotted against the file's own page count, so "12 open" reads differently in a
-              3-page consent form and a 113-page case sheet. */}
-          <BandPlot
-            className="mt-1"
-            value={open}
-            max={active || 1}
-            tone={open > 0 ? 'warn' : 'ok'}
-            height="h-1.5"
-          />
+      <div className="border-b border-rule px-4 py-3">
+        <div className="flex items-baseline justify-between text-[13px]">
+          <span className="text-ink">
+            <strong className="font-semibold">{open}</strong> open
+          </span>
+          <span className="tabular-nums text-ink-2">{pct}% reviewed</span>
         </div>
-
-        <Link
-          to={`/review/${doc.id}`}
-          className="inline-flex min-h-[30px] items-center gap-1.5 border border-chart bg-chart px-3 font-label text-[12px] font-semibold uppercase tracking-label text-paper transition-colors duration-150 ease-chart hover:bg-chart/90"
-        >
-          <ClipboardCheck size={13} strokeWidth={2.5} aria-hidden="true" />
-          Review file
-        </Link>
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-paper-3" aria-hidden="true">
+          <div className="h-full rounded-full bg-chart transition-all" style={{ width: `${pct}%` }} />
+        </div>
       </div>
+
+      <OpenPages documentId={doc.id} />
     </div>
   );
 }
@@ -233,19 +175,21 @@ function OpenPages({ documentId }: { documentId: string }) {
   const items = pages.data?.items ?? [];
 
   return (
-    <div className="border-t border-rule p-3">
-      <p className="mb-2 text-[13px] font-semibold text-ink">
-        Pages waiting for a decision{pages.data ? ` (${items.length})` : ''}
-      </p>
+    <div className="p-4">
+      <p className="mb-3 text-[13px] font-medium text-ink-2">Pages waiting for a decision</p>
       {pages.isLoading ? <Spinner label="Loading pages…" /> : null}
       {pages.isError ? <ErrorState error={pages.error} retry={() => pages.refetch()} /> : null}
       {pages.data && items.length === 0 ? (
-        <p className="text-[13px] text-ink-2">Nothing in this file is waiting.</p>
+        <p className="text-[14px] text-ink-2">Nothing in this file is waiting. ✓</p>
       ) : null}
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-2">
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3">
         {items.map((p) => (
           <li key={p.page_version_id}>
-            <Link to={`/pages/${p.page_version_id}`} className="block" aria-label={`Open page ${p.ordinal}`}>
+            <Link
+              to={`/pages/${p.page_version_id}`}
+              className="block transition-transform duration-150 hover:-translate-y-0.5"
+              aria-label={`Open page ${p.ordinal}`}
+            >
               <PageThumb
                 as="div"
                 pageVersionId={p.page_version_id}
