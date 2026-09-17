@@ -62,12 +62,16 @@ def _media_for(key: str) -> str:
 
 
 def _review_state(pv: PageVersion) -> str:
-    actions = {r.action for r in pv.reviews}
-    if "request_rescan" in actions:
-        return "rescan_requested"
-    if "accept" in actions:
-        return "accepted"
-    return "pending"
+    """The page's state is its *latest* closing decision.
+
+    Any-rescan-ever used to win, so "Accept anyway" on a page someone had sent for rescan recorded
+    the accept, said "Page accepted." and left the page on the rescan list regardless.
+    """
+    closing = [r for r in pv.reviews if r.action in ("accept", "request_rescan")]
+    if not closing:
+        return "pending"
+    latest = max(closing, key=lambda r: (r.created_at, r.id))
+    return "accepted" if latest.action == "accept" else "rescan_requested"
 
 
 def _diagnosis_bucket(pv: PageVersion) -> str:

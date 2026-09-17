@@ -20,13 +20,14 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileStack, FileText, Pencil, ScanEye, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
+import { refreshPageState } from '../lib/refresh';
 import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/status';
 import type { Case, CasePatch } from '../lib/types';
 import { ChartHead, MarginNote, Panel } from '../components/Sheet';
 import { isWorking, ProcessingState } from '../components/ProcessingState';
 import { Modal } from '../components/Modal';
-import { Pager, pageParams } from '../components/Pager';
+import { Pager, pageParams, useClampPage } from '../components/Pager';
 import { useToast } from '../components/Toast';
 import { Button, EmptyState, ErrorState, Select, Spinner, TextInput } from '../components/ui';
 
@@ -87,6 +88,7 @@ export default function PatientsPage() {
   const dateFiltered = Boolean(day);
   const rows = useMemo(() => q.data?.items ?? [], [q.data]);
   const matching = q.data?.total ?? 0;
+  useClampPage(page, q.data?.total, setPage);
   const withScans = useMemo(() => rows.filter((c) => c.page_count > 0).length, [rows]);
   const working = useMemo(() => rows.filter(isWorking).length, [rows]);
 
@@ -378,7 +380,7 @@ export default function PatientsPage() {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
-            qc.invalidateQueries({ queryKey: ['cases'] });
+            refreshPageState(qc);
             toast.push('Patient record updated.', 'success');
           }}
         />
@@ -390,7 +392,7 @@ export default function PatientsPage() {
           onClose={() => setDeleting(null)}
           onDeleted={() => {
             setDeleting(null);
-            qc.invalidateQueries({ queryKey: ['cases'] });
+            refreshPageState(qc);
             toast.push('Patient record deleted.', 'success');
           }}
         />

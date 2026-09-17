@@ -65,3 +65,30 @@ describe('pageClassView', () => {
     expect(pageClassView('rescan').label).not.toBe(pageClassView('acceptable').label);
   });
 });
+
+import { effectivePageClass, isOpenForReview, reviewStateView } from '../lib/status';
+
+describe('the reviewer decision is applied the same way everywhere', () => {
+  it('counts an accepted flagged page as acceptable, and nothing else', () => {
+    expect(effectivePageClass('review', 'accepted')).toBe('acceptable');
+    expect(effectivePageClass('rescan', 'accepted')).toBe('acceptable');
+    expect(effectivePageClass('review', 'pending')).toBe('review');
+    expect(effectivePageClass('rescan', 'rescan_requested')).toBe('rescan');
+    // Accepting does not make an unmeasured page measured.
+    expect(effectivePageClass('failed', 'accepted')).toBe('failed');
+  });
+
+  it('treats only undecided flagged pages as open', () => {
+    expect(isOpenForReview('review', 'pending')).toBe(true);
+    expect(isOpenForReview('review', 'accepted')).toBe(false);
+    expect(isOpenForReview('rescan', 'rescan_requested')).toBe(false);
+    expect(isOpenForReview('acceptable', 'pending')).toBe(false);
+  });
+
+  it('does not put "Awaiting review" on a page nobody has to review', () => {
+    expect(reviewStateView('pending', 'acceptable').label).toBe('No review needed');
+    expect(reviewStateView('pending', 'review').label).toBe('Awaiting review');
+    expect(reviewStateView('accepted', 'review').label).toBe('Accepted');
+    expect(reviewStateView('pending').label).toBe('Awaiting review');
+  });
+});

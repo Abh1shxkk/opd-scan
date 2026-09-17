@@ -174,6 +174,26 @@ _NEEDS_REVIEW_CLASSES = (PageClass.review, PageClass.rescan)
 #: Page review actions that close the "awaiting review" state.
 _CLOSING_REVIEW_ACTIONS = ("accept", "request_rescan")
 
+
+def latest_closing_action():
+    """Correlated subquery: the most recent accept / request_rescan on the outer PageVersion.
+
+    A reviewer can change their mind, so a page's review state is its latest closing decision, not
+    whether any accept or any rescan request exists. Every filter, count and export uses this one
+    definition so that no two screens disagree about the same page.
+    """
+    return (
+        select(PageReview.action)
+        .where(
+            PageReview.page_version_id == PageVersion.id,
+            PageReview.action.in_(_CLOSING_REVIEW_ACTIONS),
+        )
+        .order_by(PageReview.created_at.desc(), PageReview.id.desc())
+        .limit(1)
+        .correlate(PageVersion)
+        .scalar_subquery()
+    )
+
 _SEVERITY_RANK = {Severity.low: 0, Severity.medium: 1, Severity.high: 2}
 
 
@@ -360,7 +380,19 @@ def _apply_filters(stmt: Select, f: PageFilters) -> Select:
     # -- quality class ----------------------------------------------------
     classes = _enum_values(f.page_class, PageClass)
     if classes:
-        clause = QualityResult.overall.in_(classes)
+        latest = latest_closing_action()
+        not_accepted = or_(latest.is_(None), latest != "accept")
+        engine = [c for c in classes if c not in _NEEDS_REVIEW_CLASSES]
+        flagged = [c for c in classes if c in _NEEDS_REVIEW_CLASSES]
+        parts = []
+        if engine:
+            parts.append(QualityResult.overall.in_(engine))
+        if flagged:
+            # A flagged page a reviewer has accepted is no longer "needs review" / "rescan".
+            parts.append(and_(QualityResult.overall.in_(flagged), not_accepted))
+        if PageClass.acceptable in classes:
+            parts.append(and_(QualityResult.overall.in_(_NEEDS_REVIEW_CLASSES), latest == "accept"))
+        clause = or_(*parts)
         if PageClass.unchecked in classes:
             # A page that has never been through the quality engine has no QualityResult row at
             # all. It is unchecked, and asking for "unchecked" must return it.
@@ -431,17 +463,9 @@ def _apply_filters(stmt: Select, f: PageFilters) -> Select:
             .exists()
         )
         if f.review_state == "accepted":
-            conditions.append(
-                select(PageReview.id)
-                .where(PageReview.page_version_id == PageVersion.id, PageReview.action == "accept")
-                .exists()
-            )
+            conditions.append(latest_closing_action() == "accept")
         elif f.review_state == "rescan_requested":
-            conditions.append(
-                select(PageReview.id)
-                .where(PageReview.page_version_id == PageVersion.id, PageReview.action == "request_rescan")
-                .exists()
-            )
+            conditions.append(latest_closing_action() == "request_rescan")
         elif f.review_state == "pending":
             # Identical definition to the dashboard's awaiting_review, on purpose.
             conditions.append(and_(QualityResult.overall.in_(_NEEDS_REVIEW_CLASSES), ~closed))
@@ -550,6 +574,18 @@ def dashboard_counts(db: Session, f: PageFilters) -> dict[str, Any]:
     for overall, n in rows:
         key = _enum_value(overall) or PageClass.unchecked.value
         quality[key] = quality.get(key, 0) + int(n)
+    # Flagged pages a reviewer accepted move to acceptable, matching the class filter the tiles
+    # link to and the pill every page screen shows.
+    for overall, n in db.execute(
+        base()
+        .add_columns(QualityResult.overall, func.count(distinct(PageVersion.id)))
+        .join(QualityResult, QualityResult.page_version_id == PageVersion.id)
+        .where(QualityResult.overall.in_(_NEEDS_REVIEW_CLASSES), latest_closing_action() == "accept")
+        .group_by(QualityResult.overall)
+    ).all():
+        key = _enum_value(overall)
+        quality[key] = quality.get(key, 0) - int(n)
+        quality[PageClass.acceptable.value] = quality.get(PageClass.acceptable.value, 0) + int(n)
 
     # -- handwriting: missing row => pending, never "none_detected" --------
     handwriting = _zeroed(HandwritingStatus)
@@ -914,18 +950,20 @@ def rescan_rows(db: Session, f: PageFilters) -> list[dict[str, Any]]:
     if f.page_class or f.review_state:
         return rows  # caller narrowed it deliberately; respect that
 
-    requested: set[str] = set()
+    # Decided by each page's latest closing review: a page the reviewer accepted is not sent back
+    # to the scanner, and one they asked to be rescanned is, whatever the engine said.
     ids = _core_select(f, PageVersion.id).distinct()
-    for (pv_id,) in db.execute(
-        select(distinct(PageReview.page_version_id)).where(
-            PageReview.action == "request_rescan",
-            PageReview.page_version_id.in_(ids),
-        )
-    ).all():
-        requested.add(pv_id)
+    decision = {
+        pv_id: action
+        for pv_id, action in db.execute(
+            select(PageVersion.id, latest_closing_action().label("latest")).where(PageVersion.id.in_(ids))
+        ).all()
+    }
 
-    return [
-        r
-        for r in rows
-        if r["scan_status"] == PageClass.rescan.value or r["_page_version_id"] in requested
-    ]
+    def wanted(row: dict[str, Any]) -> bool:
+        latest_action = decision.get(row["_page_version_id"])
+        if latest_action == "request_rescan":
+            return True
+        return row["scan_status"] == PageClass.rescan.value and latest_action != "accept"
+
+    return [r for r in rows if wanted(r)]

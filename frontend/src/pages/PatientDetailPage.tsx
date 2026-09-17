@@ -180,6 +180,7 @@ export default function PatientDetailPage() {
                   ordinal={p.ordinal}
                   printedLabel={p.printed_page_label}
                   pageClass={p.page_class ?? undefined}
+                  reviewState={p.review_state}
                 />
               </Link>
             ))}

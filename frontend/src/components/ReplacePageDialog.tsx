@@ -14,6 +14,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { refreshPageState } from '../lib/refresh';
 import { formatBytes } from '../lib/status';
 import { Modal } from './Modal';
 import { useToast } from './Toast';
@@ -48,11 +49,7 @@ export function ReplacePageDialog({
     onSuccess: (result) => {
       // Everything that counted the old version is now wrong: the queues, the page itself, the
       // document's page list and the dashboard totals.
-      queryClient.invalidateQueries({ queryKey: ['page'] });
-      queryClient.invalidateQueries({ queryKey: ['pages'] });
-      queryClient.invalidateQueries({ queryKey: ['review-queue'] });
-      queryClient.invalidateQueries({ queryKey: ['rescan-queue'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      refreshPageState(queryClient);
       toast.push(
         `Replaced — this is now version ${result.version_no}. It has been queued for scanning; ` +
           'the quality result will appear once it finishes.',

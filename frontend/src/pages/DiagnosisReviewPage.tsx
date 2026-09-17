@@ -22,6 +22,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { api, imagePath } from '../lib/api';
+import { refreshPageState } from '../lib/refresh';
 import { useAuth } from '../lib/auth';
 import {
   diagnosisView,
@@ -60,9 +61,7 @@ export default function DiagnosisReviewPage() {
       comment?: string;
     }) => api.reviewDiagnosis(diagnosisId, payload),
     onSuccess: (_d, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['diagnosis', diagnosisId] });
-      queryClient.invalidateQueries({ queryKey: ['diagnoses'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      refreshPageState(queryClient);
       toast.push(
         vars.action === 'confirm'
           ? 'Extraction confirmed.'

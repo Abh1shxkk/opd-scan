@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, imagePath } from '../lib/api';
+import { refreshPageState } from '../lib/refresh';
 import { defectLabel } from '../lib/defects';
 import { diagnosisView, handwritingView, pageClassView, reviewStateView } from '../lib/status';
 import type { PageSummary } from '../lib/types';
@@ -61,9 +62,7 @@ export default function ReviewQueuePage() {
     mutationFn: (vars: { id: string; action: 'accept' | 'request_rescan'; comment?: string }) =>
       api.reviewPage(vars.id, { action: vars.action, comment: vars.comment }),
     onSuccess: (_d, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['review-queue'] });
-      queryClient.invalidateQueries({ queryKey: ['pages'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      refreshPageState(queryClient);
       const msg = vars.action === 'accept' ? 'Page accepted.' : 'Rescan requested.';
       setAnnouncement(`${msg} Moving to the next page in the queue.`);
       toast.push(msg, 'success');
@@ -240,7 +239,7 @@ export default function ReviewQueuePage() {
                 <div className="mt-1 flex flex-wrap gap-1">
                   <StatusPill view={pageClassView(p.page_class, p.review_state)} size="sm" />
                   <StatusPill view={handwritingView(p.handwriting_status)} size="sm" />
-                  <StatusPill view={reviewStateView(p.review_state)} size="sm" />
+                  <StatusPill view={reviewStateView(p.review_state, p.page_class)} size="sm" />
                 </div>
               </li>
             ))}

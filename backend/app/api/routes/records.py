@@ -35,7 +35,7 @@ from app.models import (
     QualityResult,
     User,
 )
-from app.models.core import IngestStatus, JobState, PageClass
+from app.models.core import CompletenessResult, IngestStatus, JobState, PageClass
 
 # The classes that put a page in front of a reviewer.
 #
@@ -48,6 +48,7 @@ from app.processing import ingest
 from app.schemas.api import BatchIn, BatchOut, CaseIn, CaseOut, CasePatch, UploadResult
 from app.services import completeness as completeness_service
 from app.services import ingest_service
+from app.services.query import latest_closing_action
 
 router = APIRouter(tags=["records"])
 
@@ -476,8 +477,38 @@ def delete_case(case_id: str, db: Session = Depends(get_db), actor: User = Depen
         entity_id=case.id,
         meta={"documents": len(doc_ids), "encounter_ref": case.encounter_ref},
     )
+    _delete_unowned_dependents(db, doc_ids, case_id=case.id)
     db.delete(case)
     db.commit()
+
+
+def _delete_unowned_dependents(db: Session, doc_ids: list[str], case_id: str | None = None) -> None:
+    """Rows that point at a document, its page versions or the case without an ORM cascade.
+
+    Job and CompletenessResult carry plain foreign keys, so on Postgres deleting the parent while
+    they exist is refused with an integrity error (and without enforcement they would be left
+    pointing at nothing). They are bookkeeping, not clinical record, so they go with it.
+    """
+    from sqlalchemy import delete, or_
+
+    if doc_ids:
+        pv_ids = (
+            select(PageVersion.id)
+            .join(LogicalPage, PageVersion.logical_page_id == LogicalPage.id)
+            .where(LogicalPage.document_id.in_(doc_ids))
+        )
+        db.execute(
+            delete(Job)
+            .where(or_(Job.document_id.in_(doc_ids), Job.page_version_id.in_(pv_ids)))
+            .execution_options(synchronize_session=False)
+        )
+    if case_id:
+        db.execute(
+            delete(CompletenessResult)
+            .where(CompletenessResult.case_id == case_id)
+            .execution_options(synchronize_session=False)
+        )
+    db.flush()
 
 
 @router.patch("/cases/{case_id}/confirm", response_model=CaseOut)
@@ -684,6 +715,28 @@ def _document_rollups(db: Session, doc_ids: list[str]) -> dict[str, dict]:
         key = overall.value if hasattr(overall, "value") else str(overall)
         out[doc_id]["page_class_counts"][key] = count
 
+    # A flagged page whose latest decision is accept is counted as acceptable, the same rule the
+    # dashboard and every page pill use; otherwise a row read "Needs review 5 / 0 of 12 open".
+    accepted_rows = db.execute(
+        select(LogicalPage.document_id, QualityResult.overall, func.count(PageVersion.id))
+        .join(PageVersion, PageVersion.logical_page_id == LogicalPage.id)
+        .join(QualityResult, QualityResult.page_version_id == PageVersion.id)
+        .where(
+            LogicalPage.document_id.in_(doc_ids),
+            PageVersion.is_active.is_(True),
+            QualityResult.overall.in_(_NEEDS_REVIEW),
+            latest_closing_action() == "accept",
+        )
+        .group_by(LogicalPage.document_id, QualityResult.overall)
+    ).all()
+    for doc_id, overall, count in accepted_rows:
+        key = overall.value if hasattr(overall, "value") else str(overall)
+        counts = out[doc_id]["page_class_counts"]
+        counts[key] = counts.get(key, 0) - count
+        if counts[key] <= 0:
+            counts.pop(key, None)
+        counts["acceptable"] = counts.get("acceptable", 0) + count
+
     active_rows = db.execute(
         select(LogicalPage.document_id, func.count(PageVersion.id))
         .join(PageVersion, PageVersion.logical_page_id == LogicalPage.id)
@@ -876,5 +929,6 @@ def delete_document(document_id: str, db: Session = Depends(get_db), actor: User
         raise HTTPException(404, "Document not found")
     audit.record(db, actor_id=actor.id, action="document.delete", entity_type="document", entity_id=doc.id,
                  meta={"pages": doc.page_count})
+    _delete_unowned_dependents(db, [doc.id])
     db.delete(doc)
     db.commit()

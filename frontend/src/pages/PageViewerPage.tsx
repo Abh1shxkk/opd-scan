@@ -23,6 +23,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, imagePath } from '../lib/api';
+import { refreshPageState } from '../lib/refresh';
 import { useAuth } from '../lib/auth';
 import { CUTOFF_CAVEAT, defectLabel, isCutoff } from '../lib/defects';
 import {
@@ -86,9 +87,7 @@ export default function PageViewerPage() {
       payload?: Record<string, unknown>;
     }) => api.reviewPage(pageVersionId, payload),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['page', pageVersionId] });
-      queryClient.invalidateQueries({ queryKey: ['pages'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      refreshPageState(queryClient);
       toast.push(
         variables.action === 'accept'
           ? 'Page accepted.'
@@ -1117,7 +1116,11 @@ function VersionHistoryPanel({
                     />
                   )}
                   {v.page_class ? (
-                    <StatusPill view={pageClassView(v.page_class)} size="sm" />
+                    <StatusPill
+                      // Reviews belong to a version; only the active one's state is on this payload.
+                      view={pageClassView(v.page_class, v.is_active ? page.review_state : undefined)}
+                      size="sm"
+                    />
                   ) : null}
                 </div>
                 <p className="mt-1 text-[11px] text-ink-2">

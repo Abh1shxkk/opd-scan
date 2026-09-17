@@ -264,7 +264,7 @@ function PagesTable({ rows }: { rows: PageSummary[] }) {
                         <StatusPill view={diagnosisView(p.diagnosis_status)} size="sm" />
                       </td>
                       <td className="align-top">
-                        <StatusPill view={reviewStateView(p.review_state)} size="sm" />
+                        <StatusPill view={reviewStateView(p.review_state, p.page_class)} size="sm" />
                       </td>
                     </tr>
                   ))}

@@ -133,7 +133,7 @@ export function pageClassView(
   reviewState?: ReviewState | null,
 ): StatusView {
   const base = (c ? PAGE_CLASS[c] : undefined) ?? PAGE_CLASS.unchecked;
-  if (reviewState === 'accepted' && c && NEEDS_ATTENTION_CLASSES.includes(c)) {
+  if (reviewState === 'accepted' && c && FLAGGED_CLASSES.includes(c)) {
     // A reviewer's accept is the final word on the page: it reads as acceptable everywhere.
     return { ...PAGE_CLASS.acceptable, qualifier: 'accepted by reviewer' };
   }
@@ -158,6 +158,27 @@ export const PASSED_CLASSES: PageClass[] = ['acceptable'];
 
 /** Classes that mean "a human still has to look at this page". */
 export const NEEDS_ATTENTION_CLASSES: PageClass[] = ['review', 'rescan', 'failed'];
+
+/**
+ * The classes a reviewer decides on. Only these move to "acceptable" when accepted — the same rule
+ * the API applies to dashboard counts, file rollups and the class filter. A failed page stays
+ * failed: accepting it does not make an unmeasured page measured.
+ */
+const FLAGGED_CLASSES: PageClass[] = ['review', 'rescan'];
+
+/** The class a page counts under once the reviewer's latest decision is applied. */
+export function effectivePageClass(
+  c: PageClass | null | undefined,
+  reviewState?: ReviewState | null,
+): PageClass {
+  const klass = c ?? 'unchecked';
+  return reviewState === 'accepted' && FLAGGED_CLASSES.includes(klass) ? 'acceptable' : klass;
+}
+
+/** Still waiting for a reviewer: flagged by the engine and no closing decision yet. */
+export function isOpenForReview(c: PageClass | null | undefined, reviewState?: ReviewState | null): boolean {
+  return Boolean(c && FLAGGED_CLASSES.includes(c)) && (reviewState ?? 'pending') === 'pending';
+}
 
 // ----------------------------------------------------------- handwriting
 
@@ -468,9 +489,27 @@ const REVIEW_STATE: Record<ReviewState, StatusView> = {
   rescan_requested: { label: 'Rescan requested', tone: 'bad', icon: RefreshCw },
 };
 
-export function reviewStateView(s: ReviewState | null | undefined): StatusView {
-  if (!s) return REVIEW_STATE.pending;
-  return REVIEW_STATE[s] ?? REVIEW_STATE.pending;
+const REVIEW_NOT_NEEDED: StatusView = {
+  label: 'No review needed',
+  tone: 'neutral',
+  icon: Minus,
+  detail: 'The engine did not flag this page, so nobody has to decide on it.',
+};
+
+/**
+ * `pageClass` is optional. When given, an undecided page the engine never flagged reads "No review
+ * needed" rather than "Awaiting review" — it is not in any queue and never will be, and the old
+ * label put a warning on every clean page of the documents list.
+ */
+export function reviewStateView(
+  s: ReviewState | null | undefined,
+  pageClass?: PageClass | null,
+): StatusView {
+  const state = s ?? 'pending';
+  if (state === 'pending' && pageClass !== undefined && !FLAGGED_CLASSES.includes(pageClass ?? 'unchecked')) {
+    return REVIEW_NOT_NEEDED;
+  }
+  return REVIEW_STATE[state] ?? REVIEW_STATE.pending;
 }
 
 export const REVIEW_STATES: ReviewState[] = ['pending', 'accepted', 'rescan_requested'];

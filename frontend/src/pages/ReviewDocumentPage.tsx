@@ -14,7 +14,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { api } from '../lib/api';
-import { formatDateTime, PAGE_CLASS_ORDER, pageClassView } from '../lib/status';
+import { effectivePageClass, formatDateTime, isOpenForReview, PAGE_CLASS_ORDER, pageClassView } from '../lib/status';
 import type { PageClass, PageSummary } from '../lib/types';
 import { ChartHead, MarginNote, Panel } from '../components/Sheet';
 import { PageThumb } from '../components/PageThumb';
@@ -44,22 +44,24 @@ export default function ReviewDocumentPage() {
 
   const counts = useMemo(() => {
     const out: Partial<Record<PageClass, number>> = {};
+    // Counted after the reviewer's decision: an accepted page is acceptable here, as it is on the
+    // queue row for this file and on the dashboard.
     for (const p of all) {
-      const c = p.page_class as PageClass;
+      const c = effectivePageClass(p.page_class as PageClass, p.review_state);
       out[c] = (out[c] ?? 0) + 1;
     }
     return out;
   }, [all]);
 
   const openPages = useMemo(
-    () => all.filter((p) => p.page_class === 'review' || p.page_class === 'rescan'),
+    () => all.filter((p) => isOpenForReview(p.page_class as PageClass, p.review_state)),
     [all],
   );
 
   const shown = useMemo(() => {
     if (lens === 'all') return all;
     if (lens === 'open') return openPages;
-    return all.filter((p) => p.page_class === lens);
+    return all.filter((p) => effectivePageClass(p.page_class as PageClass, p.review_state) === lens);
   }, [all, lens, openPages]);
 
   if (doc.isError) return <ErrorState error={doc.error} retry={() => doc.refetch()} />;
@@ -167,6 +169,7 @@ export default function ReviewDocumentPage() {
                   ordinal={p.ordinal}
                   printedLabel={p.printed_page_label}
                   pageClass={p.page_class as PageClass}
+                  reviewState={p.review_state}
                 />
               </Link>
             ))}

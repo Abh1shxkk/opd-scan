@@ -15,7 +15,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ClipboardCheck, FileText } from 'lucide-react';
 import { api } from '../lib/api';
-import { Pager, pageParams } from '../components/Pager';
+import { Pager, pageParams, useClampPage } from '../components/Pager';
 import { PageThumb } from '../components/PageThumb';
 import {
   EMPTY_WORK_FILTER,
@@ -53,6 +53,7 @@ export default function ReviewDocumentsPage() {
   });
 
   const rows = docs.data?.items ?? [];
+  useClampPage(page, docs.data?.total, setPage);
   const outstanding = rows.reduce((n, d) => n + (d.awaiting_review ?? 0), 0);
 
   return (

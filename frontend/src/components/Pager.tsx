@@ -6,6 +6,7 @@
  * which the API ignores, so every "next page" quietly showed page one again.
  */
 
+import { useEffect } from 'react';
 import { Button } from './ui';
 
 export const PAGE_SIZE = 50;
@@ -54,4 +55,21 @@ export function Pager({
       </Button>
     </nav>
   );
+}
+
+/**
+ * Step back when the current page no longer exists — after deleting or deciding the last item on
+ * the last page, the list would otherwise show "nothing here" with records still on earlier pages.
+ */
+export function useClampPage(
+  page: number,
+  total: number | undefined,
+  setPage: (page: number) => void,
+  pageSize = PAGE_SIZE,
+): void {
+  useEffect(() => {
+    if (total === undefined || page <= 1) return;
+    const last = Math.max(1, Math.ceil(total / pageSize));
+    if (page > last) setPage(last);
+  }, [page, total, setPage, pageSize]);
 }
