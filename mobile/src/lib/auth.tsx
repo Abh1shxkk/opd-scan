@@ -8,10 +8,11 @@
  */
 
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { api, setToken, setUnauthorizedHandler } from './api';
+import * as SecureStore from './secure-storage';
 import type { Role, User } from './types';
 
 const TOKEN_KEY = 'opd.token';
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     setToken(null);
     setUser(null);
-    await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY), SecureStore.deleteItemAsync(USER_KEY)]);
+    await Promise.all([SecureStore.deleteItem(TOKEN_KEY), SecureStore.deleteItem(USER_KEY)]);
     setStatus('signedOut');
   }, []);
 
@@ -56,11 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       const [savedToken, savedUser, bio, hasHardware, enrolled] = await Promise.all([
-        SecureStore.getItemAsync(TOKEN_KEY),
-        SecureStore.getItemAsync(USER_KEY),
-        SecureStore.getItemAsync(BIOMETRIC_KEY),
-        LocalAuthentication.hasHardwareAsync(),
-        LocalAuthentication.isEnrolledAsync(),
+        SecureStore.getItem(TOKEN_KEY),
+        SecureStore.getItem(USER_KEY),
+        SecureStore.getItem(BIOMETRIC_KEY),
+        // No biometrics in a browser preview.
+        Platform.OS === 'web' ? Promise.resolve(false) : LocalAuthentication.hasHardwareAsync(),
+        Platform.OS === 'web' ? Promise.resolve(false) : LocalAuthentication.isEnrolledAsync(),
       ]);
       const available = hasHardware && enrolled;
       setBiometricAvailable(available);
@@ -91,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Refresh the profile in the background; a revoked account is signed out by the 401 handler.
       api.me().then((u) => {
         setUser(u);
-        void SecureStore.setItemAsync(USER_KEY, JSON.stringify(u));
+        void SecureStore.setItem(USER_KEY, JSON.stringify(u));
       }).catch(() => undefined);
     }
     return result.success;
@@ -102,8 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(res.access_token);
     setUser(res.user);
     await Promise.all([
-      SecureStore.setItemAsync(TOKEN_KEY, res.access_token),
-      SecureStore.setItemAsync(USER_KEY, JSON.stringify(res.user)),
+      SecureStore.setItem(TOKEN_KEY, res.access_token),
+      SecureStore.setItem(USER_KEY, JSON.stringify(res.user)),
     ]);
     setStatus('signedIn');
   }, []);
@@ -113,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const check = await LocalAuthentication.authenticateAsync({ promptMessage: 'Confirm to turn on fingerprint unlock' });
       if (!check.success) return;
     }
-    await SecureStore.setItemAsync(BIOMETRIC_KEY, on ? '1' : '0');
+    await SecureStore.setItem(BIOMETRIC_KEY, on ? '1' : '0');
     setBiometric(on);
   }, []);
 
